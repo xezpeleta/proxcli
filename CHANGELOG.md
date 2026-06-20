@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.2] - 2026-06-20
+
+### Added
+- **vm agent interfaces** — query QEMU guest agent for network interface
+  and IP information via ``proxmox vm agent interfaces <vmid>``.
+  Requires ``qemu-guest-agent`` in the VM.
+
+### Fixed
+- CI publish job now uses ``uv publish --check-url https://pypi.org/simple``
+  to skip already-published versions instead of failing with "File already
+  exists".
+
 ## [0.8.1] - 2026-06-20
 
 ### Added
@@ -124,6 +136,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CSRF ticket auto-refresh on 401.
 - AI-agent-friendly: default JSON output, strict exit codes, `--dry-run` mode.
 
+[0.8.2]: https://github.com/xezpeleta/proxcli/releases/tag/v0.8.2
 [0.8.1]: https://github.com/xezpeleta/proxcli/releases/tag/v0.8.1
 [0.8.0]: https://github.com/xezpeleta/proxcli/releases/tag/v0.8.0
 [0.7.2]: https://github.com/xezpeleta/proxcli/releases/tag/v0.7.2
