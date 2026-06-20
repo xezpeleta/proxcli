@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **``proxmox auth setup``**: now uses the correct ``tokens`` (plural) form
+  parameter for token ACLs instead of ``tokenid``, which Proxmox's REST API
+  doesn't accept.  Token-scoped ACLs are now created fully automatically.
+- **Role permissions**: ``Pool.Allocate`` and ``Pool.Audit`` moved to
+  ``proxcli-sys`` (pool operations check against ``/``, not ``/vms``).
+  ``VM.GuestAgent.Audit`` added to ``proxcli-vm`` (guest agent checks
+  against ``/vms/{id}``, not ``/nodes/{node}``).
+
+### Added
+- **``proxmox auth check``**: now prints each check inline with colored
+  PASS (green) / FAIL (red) as it runs instead of only at the end.
+  Also scans the token for leftover Administrator/PVEAdmin roles and
+  warns to remove them after the proxcli roles are confirmed working.
+
 ## [0.13.0] - 2026-06-21
 
 ### Added
