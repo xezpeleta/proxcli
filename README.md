@@ -42,8 +42,14 @@ proxmox vm list
 # Show a specific VM
 proxmox vm show 100
 
-# Create a VM
+# Create a VM (CLI flags)
 proxmox vm create --node pve01 --vmid 110 --memory 2048 --cores 2 --name webserver
+
+# Create a VM from a YAML file (declarative, version-controlled)
+proxmox vm create --file my-vm.yaml
+
+# Export an existing VM config as a YAML template
+proxmox --output yaml vm config 112 > my-vm.yaml
 
 # Start / stop / reboot
 proxmox vm start 110
@@ -155,9 +161,11 @@ proxmox completion fish > ~/.config/fish/completions/proxmox.fish
 ```bash
 proxmox vm list [--node <node>]
 proxmox vm show <vmid> [--node <node>]
+proxmox vm config <vmid> [--node <node>]     # clean config, ready for --file import
 proxmox vm create --node <node> --memory <mb> [--vmid <id>] [--cores <n>] \
     [--name <name>] [--cdrom <iso>] [--net <config>] [--disk <size>] \
-    [--scsihw <type>] [--bios seabios|ovmf] [--machine <type>] [--boot <order>]
+    [--scsihw <type>] [--bios seabios|ovmf] [--machine <type>] [--boot <order>] \
+    [--file <spec.yaml>]     # declarative VM spec (CLI flags override file values)
 proxmox vm start <vmid> [--node <node>]
 proxmox vm stop <vmid> [--node <node>]
 proxmox vm reboot <vmid> [--node <node>]
@@ -187,6 +195,38 @@ proxmox vm firewall rules update <vmid> <pos> --action DROP
 proxmox vm firewall rules delete <vmid> <pos>
 proxmox vm firewall refs <vmid> [--type alias|ipset|group]
 ```
+
+#### Declarative VM specs (`--file`)
+
+Create VMs from YAML files using native Proxmox VM config keys.
+CLI flags override file values — ideal for infrastructure-as-code:
+
+```yaml
+# webserver.yaml
+name: webserver
+node: sanmarko
+memory: 4096
+cores: 2
+net0: "virtio,bridge=vmbr0,tag=99"
+import_from: local:import/debian-12-genericcloud-amd64.qcow2
+citype: nocloud
+ciuser: debian
+cipassword: ChangeMe123!
+sshkeys: ~/.ssh/id_rsa.pub
+```
+
+```bash
+# Create from file
+proxmox vm create --file webserver.yaml
+
+# Override specific values
+proxmox vm create --file webserver.yaml --name staging --memory 8192
+
+# Export existing VM as YAML template
+proxmox --output yaml vm config 112 > template.yaml
+```
+
+See [docs/cloud-init.md](docs/cloud-init.md) for cloud-init specifics.
 
 ### Container (LXC)
 

@@ -62,6 +62,10 @@ proxmox storage content <storage> --node <node>
 
 ## Creating a Cloud-Init VM
 
+Two approaches are available:
+
+**Approach A: CLI flags only** (best for scripting and one-liners):
+
 The complete workflow is a **single `vm create` command** — Proxmox handles
 disk import, cloud-init drive creation, and ISO generation automatically:
 
@@ -80,6 +84,44 @@ proxmox vm create \
   --searchdomain mydomain.lan \
   --net 'virtio,bridge=vmbr0'
 ```
+
+**Approach B: `--file` YAML spec** (best for declarative, version-controlled configs):
+
+```bash
+# 1. Export an existing VM config as a starting point (optional)
+proxmox --output yaml vm config 112 > my-vm.yaml
+
+# 2. Edit the YAML with your desired config
+```
+
+```yaml
+# my-vm.yaml — native Proxmox VM config keys
+name: my-cloud-vm
+node: sanmarko
+memory: 4096
+cores: 2
+import_from: local:import/debian-12-genericcloud-amd64.qcow2
+citype: nocloud
+ciuser: debian
+cipassword: SecurePassword123!
+sshkeys: ~/.ssh/id_rsa.pub
+nameserver: 1.1.1.1
+searchdomain: mydomain.lan
+net0: "virtio,bridge=vmbr0"
+```
+
+```bash
+# 3. Create the VM from file (CLI flags override file values)
+proxmox vm create --file my-vm.yaml
+
+# Override specific values on the fly:
+proxmox vm create --file my-vm.yaml --name staging-vm --memory 8192
+```
+
+The YAML format uses **native Proxmox VM config keys** — the same fields
+returned by `vm config` and accepted by the Proxmox API.  Any key in the
+file that isn't overridden by a CLI flag is passed directly as a body
+parameter to the API.
 
 ### Flag reference
 
@@ -160,6 +202,8 @@ On first boot, cloud-init will:
 
 ## Complete Example: Debian 12 Cloud VM
 
+### CLI flags approach
+
 ```bash
 # 1. Upload the cloud image (one-time)
 proxmox storage upload \
@@ -184,6 +228,33 @@ proxmox vm create \
 proxmox vm start <vmid>
 
 # 4. SSH in (after boot completes)
+ssh debian@<ip>
+```
+
+### --file approach (declarative)
+
+```bash
+# 1. Create the spec file
+cat > webserver.yaml << 'EOF'
+name: webserver
+node: sanmarko
+memory: 4096
+cores: 2
+import_from: local:import/debian-12-genericcloud-amd64.qcow2
+citype: nocloud
+ciuser: debian
+cipassword: ChangeMe123!
+sshkeys: ~/.ssh/id_rsa.pub
+nameserver: 1.1.1.1
+searchdomain: tknika.net
+net0: "virtio,bridge=vmbr0"
+EOF
+
+# 2. Create from file
+proxmox vm create --file webserver.yaml
+
+# 3. Start and SSH (same as above)
+proxmox vm start <vmid>
 ssh debian@<ip>
 ```
 
