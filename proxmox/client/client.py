@@ -58,23 +58,29 @@ class ProxmoxClient:
         *,
         params: dict[str, Any] | None = None,
         data: dict[str, Any] | None = None,
+        content: str | None = None,
     ) -> dict[str, Any] | list[Any]:
         """Send an HTTP request and unwrap the Proxmox JSON envelope.
 
         Returns ``response.json()["data"]`` on success.
+
+        Set ``content`` to send a raw string body (e.g. pre-encoded form data)
+        instead of ``data`` which gets form-encoded by httpx.
         """
         path = self._normalise_path(path)
         full_url = f"{self._base_url}/api2/json{path}"
 
         self._debug(f"{method} {full_url}")
-        if data:
+        if content:
+            self._debug(f"  content: {content[:200]}")
+        elif data:
             self._debug(f"  body: {data}")
 
         if self._dry_run:
-            self._print_dry_run(method, full_url, data)
+            self._print_dry_run(method, full_url, data or {"content": content})
             return {}
 
-        return self._send_with_retry(method, full_url, params, data)
+        return self._send_with_retry(method, full_url, params, data, content)
 
     def get(self, path: str, *, params: dict[str, Any] | None = None) -> dict[str, Any] | list[Any]:
         return self.request("GET", path, params=params)
@@ -186,12 +192,13 @@ class ProxmoxClient:
         url: str,
         params: dict[str, Any] | None,
         data: dict[str, Any] | None,
+        content: str | None = None,
     ) -> dict[str, Any] | list[Any]:
         last_exc: Exception | None = None
 
         for attempt in range(self._max_retries + 1):
             try:
-                return self._send_one(method, url, params, data)
+                return self._send_one(method, url, params, data, content)
             except AuthError:
                 raise  # don't retry auth errors
             except ProxmoxAPIError as exc:
@@ -219,19 +226,27 @@ class ProxmoxClient:
         url: str,
         params: dict[str, Any] | None,
         data: dict[str, Any] | None,
+        content: str | None = None,
     ) -> dict[str, Any] | list[Any]:
         headers = self._auth.get_headers()
 
+        # Build the httpx kwargs
+        httpx_kwargs: dict[str, Any] = dict(
+            method=method,
+            url=url,
+            params=params,
+            headers=headers,
+            timeout=self._timeout,
+            verify=self._verify_tls,
+        )
+        if content is not None:
+            httpx_kwargs["content"] = content
+            httpx_kwargs["headers"] = {**headers, "Content-Type": "application/x-www-form-urlencoded"}
+        else:
+            httpx_kwargs["data"] = data
+
         try:
-            resp = httpx.request(
-                method=method,
-                url=url,
-                params=params,
-                data=data,
-                headers=headers,
-                timeout=self._timeout,
-                verify=self._verify_tls,
-            )
+            resp = httpx.request(**httpx_kwargs)
         except httpx.TimeoutException:
             raise
         except httpx.RequestError as exc:
@@ -247,16 +262,10 @@ class ProxmoxClient:
             # Auto-refresh ticket once
             self._debug("  🔄 re-authenticating ...")
             self.authenticate()
-            headers = self._auth.get_headers()
-            resp = httpx.request(
-                method=method,
-                url=url,
-                params=params,
-                data=data,
-                headers=headers,
-                timeout=self._timeout,
-                verify=self._verify_tls,
-            )
+            retry_headers = self._auth.get_headers()
+            retry_kwargs = dict(httpx_kwargs)
+            retry_kwargs["headers"] = retry_headers
+            resp = httpx.request(**retry_kwargs)
 
         if not (200 <= resp.status_code < 300):
             try:

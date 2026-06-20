@@ -31,10 +31,19 @@ def register_vm_parser(subparsers: argparse._SubParsersAction) -> None:
     vm_create.add_argument("--vmid", type=vmid_type, default=None, help="VM ID (auto-assigned if omitted)")
     vm_create.add_argument("--memory", type=int, required=True, help="Memory in MB")
     vm_create.add_argument("--cores", type=int, default=1, help="CPU cores (default: 1)")
-    vm_create.add_argument("--net", default=None, help="Network config (e.g. model=virtio,bridge=vmbr0)")
+    vm_create.add_argument(
+        "--net", default=None, action="append", dest="net_ifaces",
+        help="Network config (e.g. virtio=MAC,bridge=vmbr0). Repeat for multiple NICs."
+    )
     vm_create.add_argument("--storage", default=None, help="Storage for the VM disk")
-    vm_create.add_argument("--ostemplate", default=None, help="OS template/ISO")
+    vm_create.add_argument("--cdrom", default=None, help="ISO volume for install (e.g. local:iso/debian.iso)")
     vm_create.add_argument("--name", default=None, help="VM name")
+    vm_create.add_argument("--scsihw", default=None, choices=["lsi", "lsi53c810", "virtio-scsi-pci", "virtio-scsi-single", "megasas", "pvscsi"],
+                           help="SCSI controller type")
+    vm_create.add_argument("--bios", default=None, choices=["seabios", "ovmf"], help="BIOS type")
+    vm_create.add_argument("--machine", default=None, help="Machine type (e.g. q35)")
+    vm_create.add_argument("--boot", default=None, help="Boot order (e.g. order=cd;net)")
+    vm_create.add_argument("--disk", default=None, help="Disk size (e.g. 32G). Uses --storage if set, else local-lvm.")
     vm_create.set_defaults(func=_vm_create)
 
     # --- vm start ---
@@ -215,21 +224,51 @@ def _vm_show(args: argparse.Namespace, client: ProxmoxClient) -> dict:
 
 
 def _vm_create(args: argparse.Namespace, client: ProxmoxClient) -> dict:
+    vmid = resolve_vmid(client, args.vmid)
     data: dict = {
-        "vmid": resolve_vmid(client, args.vmid),
-        "memory": args.memory,
-        "cores": args.cores,
+        "vmid": str(vmid),
+        "memory": str(args.memory),
+        "cores": str(args.cores),
     }
-    if args.net:
-        data["net0"] = args.net
     if args.name:
         data["name"] = args.name
-    if args.ostemplate:
-        data["ostemplate"] = args.ostemplate
-    if args.storage:
-        data["storage"] = args.storage
+    if args.bios:
+        data["bios"] = args.bios
+    if args.machine:
+        data["machine"] = args.machine
+    if args.scsihw:
+        data["scsihw"] = args.scsihw
+    if args.boot:
+        data["boot"] = args.boot
 
-    result = client.post(f"/nodes/{args.node}/qemu", data=data)
+    # Network interfaces: net0, net1, ...
+    if args.net_ifaces:
+        for i, net_cfg in enumerate(args.net_ifaces):
+            # Pre-encode the net config for form body: = → %3D, : → %3A, , → %2C
+            encoded = net_cfg.replace("=", "%3D").replace(":", "%3A").replace(",", "%2C")
+            data[f"net{i}"] = encoded
+
+    # CD-ROM / ISO
+    if args.cdrom:
+        # Build: file=storage:iso/file.iso,media=cdrom
+        # Pre-encode: = → %3D, : → %3A, , → %2C
+        ide_raw = f"file={args.cdrom},media=cdrom"
+        data["ide2"] = ide_raw.replace("=", "%3D").replace(":", "%3A").replace(",", "%2C")
+
+    # Disk
+    if args.disk:
+        storage = args.storage or "local-lvm"
+        if ":" not in args.disk:
+            disk_raw = f"{storage}:{args.disk}"
+        else:
+            disk_raw = args.disk
+        data["scsi0"] = disk_raw.replace("=", "%3D").replace(":", "%3A").replace(",", "%2C")
+
+    # Build form-encoded body manually — httpx's data= would double-encode %
+    from urllib.parse import urlencode
+    body = urlencode(data, safe="%")  # safe="%" means don't re-encode existing %XX
+
+    result = client.request("POST", f"/nodes/{args.node}/qemu", content=body)
     return result if isinstance(result, dict) else {"data": result}
 
 
