@@ -59,6 +59,7 @@ def build_root_parser() -> argparse.ArgumentParser:
     from proxmox.cli.cluster import register_cluster_parser
     from proxmox.cli.container import register_container_parser
     from proxmox.cli.node import register_node_parser
+    from proxmox.cli.pool import register_pool_parser
     from proxmox.cli.storage import register_storage_parser
     from proxmox.cli.tasks import register_task_parser
     from proxmox.cli.vm import register_vm_parser
@@ -66,6 +67,7 @@ def build_root_parser() -> argparse.ArgumentParser:
     register_auth_parser(subparsers)
     register_vm_parser(subparsers)
     register_node_parser(subparsers)
+    register_pool_parser(subparsers)
     register_container_parser(subparsers)
     register_storage_parser(subparsers)
     register_cluster_parser(subparsers)

@@ -181,6 +181,17 @@ proxmox node firewall refs <node> [--type alias|ipset|group]
 proxmox storage list [--node <node>]
 proxmox storage show <storage>
 proxmox storage content <storage> [--node <node>]
+proxmox storage upload --node <node> --storage <storage> --file <path> [--content-type iso|vztmpl|import]
+```
+
+### Pool
+
+```bash
+proxmox pool list
+proxmox pool show <poolid>
+proxmox pool create <poolid> [--comment <text>]
+proxmox pool update <poolid> [--comment <text>] [--allow-delete]
+proxmox pool delete <poolid>
 ```
 
 ### Cluster
