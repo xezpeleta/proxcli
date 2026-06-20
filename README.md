@@ -10,7 +10,7 @@ Requires Python 3.10+ and [uv](https://docs.astral.sh/uv/).
 
 ```bash
 # From PyPI
-uv tool install proxmox
+uv tool install proxcli
 
 # From Git
 uv tool install git+https://github.com/xezpeleta/proxcli.git
