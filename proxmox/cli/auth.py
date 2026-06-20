@@ -191,33 +191,34 @@ def _auth_setup(args: argparse.Namespace, client: ProxmoxClient) -> dict:
         client.request("POST", "/access/roles", content=content)
         created_roles.append(role_name)
 
-    # 2. Create ACLs for the token (not the user — avoids overwriting user roles)
-    # Token format: user!tokenid
+    # 2. Create ACLs
+    # Proxmox's PUT /access/acl doesn't accept 'tokenid' form param —
+    # you must add token ACLs via the UI or pvesh.  We create user-level
+    # ACLs only if the path doesn't already have a role assigned.
     loader = ConfigLoader()
     creds = loader.load()
-    token_user = creds.username  # e.g. xezpeleta@pve
-    token_id = creds.api_token_id  # e.g. proxcli
-    token_ug = f"{token_user}!{token_id}" if token_id else token_user
+    ug = creds.username
 
     for path, role in PROXCLI_ACLS:
         existing_acls = client.get("/access/acl")
-        already = any(
-            a.get("path") == path
-            and a.get("roleid") == role
-            and a.get("ugid") == token_ug
+        has_user_role = any(
+            a.get("path") == path and a.get("type") == "user" and a.get("ugid") == ug
             for a in existing_acls
         )
-        if already:
-            skipped_acls.append(f"{path} → {role} ({token_ug})")
+        has_role = any(
+            a.get("path") == path and a.get("roleid") == role
+            for a in existing_acls
+        )
+        if has_role:
+            skipped_acls.append(f"{path} → {role} ({ug})")
             continue
-
-        # PUT to add ACL for the token (only sets this role+path, doesn't touch user roles)
-        data: dict[str, str] = {"path": path, "roles": role, "tokenid": token_id}
-        if token_user and "@" in token_user:
-            data["users"] = token_user
-        content = _safe_encode(data)
+        if has_user_role:
+            # User already has a role on this path — skip to avoid overwriting
+            skipped_acls.append(f"{path} → {role} ({ug}) [user already has role on this path, skipping]")
+            continue
+        content = _safe_encode({"path": path, "roles": role, "users": ug})
         client.request("PUT", "/access/acl", content=content)
-        created_acls.append(f"{path} → {role} ({token_ug})")
+        created_acls.append(f"{path} → {role} ({ug})")
 
     return {
         "created_roles": created_roles,
@@ -227,16 +228,23 @@ def _auth_setup(args: argparse.Namespace, client: ProxmoxClient) -> dict:
     }
 
 
-def _auth_check(args: argparse.Namespace, client: ProxmoxClient) -> list[dict]:
+def _auth_check(args: argparse.Namespace, client: ProxmoxClient) -> None:
     """Test each proxcli endpoint and report permission status."""
-    results: list[dict] = []
+    # Rich for colored output
+    from rich.console import Console
+    from rich.text import Text
+
+    console = Console(highlight=False, force_terminal=True, width=120)
 
     # Resolve a real node name for paths that need it
     nodes = client.get("/nodes")
     node = nodes[0]["node"] if nodes else "pve"
 
-    for label, method, path, needed_priv in PERMISSION_CHECKS:
-        # Replace placeholders
+    total = len(PERMISSION_CHECKS)
+    passed = 0
+    failed = 0
+
+    for idx, (label, method, path, needed_priv) in enumerate(PERMISSION_CHECKS, 1):
         real_path = path.replace("{node}", node).replace("{vmid}", "99999") \
                          .replace("{storage}", "local").replace("{snapname}", "test")
 
@@ -244,22 +252,31 @@ def _auth_check(args: argparse.Namespace, client: ProxmoxClient) -> list[dict]:
             if method in ("GET", "DELETE"):
                 client.request(method, real_path)
             else:
-                # POST/PUT: send dummy body to check permission (not actual creation)
                 client.request(method, real_path, data={"dry": "1"})
             status = "PASS"
+            passed += 1
         except ProxmoxAPIError as exc:
             if exc.status_code == 403:
                 status = "FAIL"
+                failed += 1
             else:
-                # 404 (node not found), 500, etc. means we had permission
-                # to reach the endpoint but something else went wrong
                 status = "PASS"
+                passed += 1
 
-        results.append({
-            "feature": label,
-            "method": method,
-            "privilege": needed_priv,
-            "status": status,
-        })
+        # Print inline with colors
+        color = "green" if status == "PASS" else "red"
+        status_text = Text(status, style=f"bold {color}")
+        console.print(
+            f"[{idx}/{total}]",
+            status_text,
+            f"{needed_priv:<28s}",
+            label,
+        )
 
-    return results
+    # Summary
+    console.print()
+    console.print(f"Passed: [bold green]{passed}[/], Failed: [bold red]{failed}[/], Total: {total}")
+    if failed == 0:
+        console.print("[bold green]✓ All permissions configured correctly!")
+    else:
+        console.print("[bold yellow]⚠ Some permissions are missing. Run 'proxmox auth setup' or check docs/api-permissions.md")
