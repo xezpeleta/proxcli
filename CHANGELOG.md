@@ -7,7 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.1.1] - 2026-06-20
+## [0.2.0] - 2026-06-20
+
+### Added
+- `proxmox storage upload` command for uploading ISO, vztmpl, and import files to storage via multipart/form-data.
+- `ProxmoxClient.upload()` method supporting file uploads with content type selection.
 
 ### Changed
 - `proxmox vm create --vmid` and `proxmox container create --vmid` are now optional.
@@ -32,5 +36,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CSRF ticket auto-refresh on 401.
 - AI-agent-friendly: default JSON output, strict exit codes, `--dry-run` mode.
 
+[0.2.0]: https://github.com/xezpeleta/proxcli/releases/tag/v0.2.0
 [0.1.1]: https://github.com/xezpeleta/proxcli/releases/tag/v0.1.1
 [0.1.0]: https://github.com/xezpeleta/proxcli/releases/tag/v0.1.0

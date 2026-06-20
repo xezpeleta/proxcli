@@ -9,6 +9,9 @@ wheels/
 # Virtual environments
 .venv
 
+# Environment / secrets
+.env
+
 # IDE / Editor
 *.swp
 *.swo
