@@ -1,4 +1,4 @@
-# proxmox
+# proxcli
 
 A CLI tool to interact with [Proxmox VE](https://www.proxmox.com/) nodes and clusters via the REST API.
 
