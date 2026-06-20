@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-06-20
+
+### Fixed
+- `--version` now reads from installed package metadata (`importlib.metadata`) instead of a hardcoded string.
+
 ## [0.2.0] - 2026-06-20
 
 ### Added
@@ -36,6 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CSRF ticket auto-refresh on 401.
 - AI-agent-friendly: default JSON output, strict exit codes, `--dry-run` mode.
 
+[0.2.1]: https://github.com/xezpeleta/proxcli/releases/tag/v0.2.1
 [0.2.0]: https://github.com/xezpeleta/proxcli/releases/tag/v0.2.0
 [0.1.1]: https://github.com/xezpeleta/proxcli/releases/tag/v0.1.1
 [0.1.0]: https://github.com/xezpeleta/proxcli/releases/tag/v0.1.0
