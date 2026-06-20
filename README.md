@@ -22,11 +22,33 @@ uv tool install .
 ## Quickstart
 
 ```bash
-# Authenticate (password-based)
-proxmox auth login --url https://192.168.1.10:8006 --username root@pam --password your_password
+# Create credentials file manually
+mkdir -p ~/.config/proxmox-cli
+chmod 700 ~/.config/proxmox-cli
 
-# Or with an API token
-proxmox auth login --url https://192.168.1.10:8006 --username root@pam --api-token 'root@pam!my-token=deadbeef...'
+# For API token auth:
+cat > ~/.config/proxmox-cli/credentials.json <<'EOF'
+{
+  "url": "https://192.168.1.10:8006",
+  "username": "root@pam",
+  "auth_method": "api_token",
+  "api_token_id": "my-token",
+  "api_token_secret": "deadbeef-..."
+}
+EOF
+chmod 600 ~/.config/proxmox-cli/credentials.json
+
+# For password auth:
+cat > ~/.config/proxmox-cli/credentials.json <<'EOF'
+{
+  "url": "https://192.168.1.10:8006",
+  "username": "root@pam",
+  "auth_method": "password",
+  "password": "your_password",
+  "verify_tls": false
+}
+EOF
+chmod 600 ~/.config/proxmox-cli/credentials.json
 
 # Enable shell completions
 source <(proxmox completion bash)          # bash
@@ -64,13 +86,24 @@ proxmox vm delete 110 --purge
 
 Credentials are stored in `~/.config/proxmox-cli/credentials.json` with restrictive permissions (`0600`).
 
-### Auth methods
+**proxcli never creates, modifies, or deletes this file.** You must create it manually.
 
-| Method | Command |
-|---|---|
-| Password | `proxmox auth login --url ... --username ... --password ...` |
-| Password (stdin) | `echo "$PASS" \| proxmox auth login --url ... --username ... --password-stdin` |
-| API token | `proxmox auth login --url ... --username ... --api-token 'user!tokenid=secret'` |
+### Config file format
+
+```json
+{
+  "url": "https://192.168.1.10:8006",
+  "username": "root@pam",
+  "auth_method": "api_token",
+  "api_token_id": "my-token",
+  "api_token_secret": "deadbeef-...",
+  "verify_tls": false
+}
+```
+
+For password auth, use `"auth_method": "password"` with `"password"` instead of `"api_token_id"`/`"api_token_secret"`.
+
+A system-wide config at `/etc/proxmox-cli/credentials.json` is also supported (checked after the user-level path).
 
 ### Override credentials per command
 
@@ -130,9 +163,7 @@ For password auth, use `"auth_method": "password"` with a `"password"` field ins
 ### Auth
 
 ```bash
-proxmox auth login   # Save credentials
 proxmox auth status  # Show current auth context
-proxmox auth clear   # Remove saved credentials
 ```
 
 ### Completion

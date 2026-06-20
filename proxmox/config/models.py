@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os as _os
 from enum import Enum
 from pathlib import Path
 
@@ -44,8 +45,10 @@ class Credentials(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Config file paths (XDG-compliant)
+# Config file paths (XDG-compliant, overridable via env var)
 # ---------------------------------------------------------------------------
-USER_CONFIG_DIR = Path.home() / ".config" / "proxmox-cli"
+
+_USER_OVERRIDE = _os.environ.get("PROXMOX_CONFIG_DIR")
+USER_CONFIG_DIR = Path(_USER_OVERRIDE) if _USER_OVERRIDE else Path.home() / ".config" / "proxmox-cli"
 SYSTEM_CONFIG_DIR = Path("/etc/proxmox-cli")
 CREDENTIALS_FILE = "credentials.json"

@@ -273,8 +273,8 @@ def main(argv: list[str] | None = None) -> None:
         return
 
     try:
-        # auth status, clear, and completion don't need a client
-        if (args.resource == "auth" and args.action in ("status", "clear")) or args.resource == "completion":
+        # auth status and completion don't need a client
+        if (args.resource == "auth" and args.action == "status") or args.resource == "completion":
             if hasattr(args, "func"):
                 result = args.func(args, None)
                 if result is not None:
