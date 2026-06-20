@@ -213,7 +213,6 @@ def _print_command_help(args: argparse.Namespace) -> None:
 GLOBAL_FLAGS = {
     "--url", "--username", "--password", "--password-stdin", "--api-token",
     "--output", "--dry-run", "--insecure", "--timeout", "--verbose", "--version",
-    "-h", "--help",
 }
 
 # Flags that take a value (the value follows the flag)
