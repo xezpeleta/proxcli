@@ -239,6 +239,22 @@ proxmox storage content <storage> [--node <node>]
 proxmox storage upload --node <node> --storage <storage> --file <path> [--content-type iso|vztmpl|import]
 ```
 
+### Network
+
+```bash
+proxmox network list [--node <node>] [--type bridge|bond|eth|vlan|...]
+proxmox network show <iface> [--node <node>]
+```
+
+List and inspect network interfaces (bridges, bonds, VLANs, physical NICs)
+on any node.  Use ``--type`` to filter by interface type.
+
+```
+$ proxmox network list --node sanmarko --type vlan
+vmbr0.10   cidr=192.168.10.14/24   gateway=192.168.10.1
+vmbr0.11   cidr=192.168.11.47/24
+```
+
 ### Pool
 
 ```bash

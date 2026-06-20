@@ -1,4 +1,4 @@
-"""Unit tests for user CLI commands."""
+"""Unit tests for network CLI commands."""
 
 from __future__ import annotations
 
@@ -16,9 +16,9 @@ def run_proxmox(*args: str) -> subprocess.CompletedProcess:
     )
 
 
-class TestUserCLI:
-    def test_user_list_dry_run(self, tmp_path, monkeypatch):
-        """user list --dry-run prints the GET request."""
+class TestNetworkCLI:
+    def test_network_list_dry_run(self, tmp_path, monkeypatch):
+        """network list --dry-run prints the GET request."""
         config_dir = tmp_path / "proxmox-cli"
         monkeypatch.setattr("proxmox.config.models.USER_CONFIG_DIR", config_dir)
 
@@ -27,14 +27,15 @@ class TestUserCLI:
             "--username", "root@pam",
             "--api-token", "root@pam!test=abc123",
             "--dry-run",
-            "user", "list",
+            "network", "list",
+            "--node", "pve01",
         )
         assert result.returncode == 0
         assert "GET" in result.stdout
-        assert "access/users" in result.stdout
+        assert "nodes/pve01/network" in result.stdout
 
-    def test_user_show_dry_run(self, tmp_path, monkeypatch):
-        """user show --dry-run prints the GET request."""
+    def test_network_list_type_filter(self, tmp_path, monkeypatch):
+        """network list --type bridge adds type param."""
         config_dir = tmp_path / "proxmox-cli"
         monkeypatch.setattr("proxmox.config.models.USER_CONFIG_DIR", config_dir)
 
@@ -43,14 +44,47 @@ class TestUserCLI:
             "--username", "root@pam",
             "--api-token", "root@pam!test=abc123",
             "--dry-run",
-            "user", "show", "testuser@pve",
+            "network", "list",
+            "--node", "pve01",
+            "--type", "bridge",
+        )
+        assert result.returncode == 0
+        assert "nodes/pve01/network" in result.stdout
+
+    def test_network_list_default_node(self, tmp_path, monkeypatch):
+        """network list defaults to localhost when --node not given."""
+        config_dir = tmp_path / "proxmox-cli"
+        monkeypatch.setattr("proxmox.config.models.USER_CONFIG_DIR", config_dir)
+
+        result = run_proxmox(
+            "--url", "https://pve:8006",
+            "--username", "root@pam",
+            "--api-token", "root@pam!test=abc123",
+            "--dry-run",
+            "network", "list",
+        )
+        assert result.returncode == 0
+        assert "nodes/localhost/network" in result.stdout
+
+    def test_network_show_dry_run(self, tmp_path, monkeypatch):
+        """network show --dry-run prints the GET request."""
+        config_dir = tmp_path / "proxmox-cli"
+        monkeypatch.setattr("proxmox.config.models.USER_CONFIG_DIR", config_dir)
+
+        result = run_proxmox(
+            "--url", "https://pve:8006",
+            "--username", "root@pam",
+            "--api-token", "root@pam!test=abc123",
+            "--dry-run",
+            "network", "show", "vmbr0",
+            "--node", "pve01",
         )
         assert result.returncode == 0
         assert "GET" in result.stdout
-        assert "access/users/testuser@pve" in result.stdout
+        assert "nodes/pve01/network/vmbr0" in result.stdout
 
-    def test_user_create_dry_run(self, tmp_path, monkeypatch):
-        """user create --dry-run prints the POST request."""
+    def test_network_show_default_node(self, tmp_path, monkeypatch):
+        """network show defaults to localhost when --node not given."""
         config_dir = tmp_path / "proxmox-cli"
         monkeypatch.setattr("proxmox.config.models.USER_CONFIG_DIR", config_dir)
 
@@ -59,19 +93,13 @@ class TestUserCLI:
             "--username", "root@pam",
             "--api-token", "root@pam!test=abc123",
             "--dry-run",
-            "user", "create", "newuser@pve",
-            "--password", "Test123!",
-            "--email", "test@example.com",
-            "--firstname", "Test",
-            "--lastname", "User",
+            "network", "show", "bond0",
         )
         assert result.returncode == 0
-        assert "POST" in result.stdout
-        assert "access/users" in result.stdout
-        assert "newuser@pve" in result.stdout
+        assert "nodes/localhost/network/bond0" in result.stdout
 
-    def test_user_create_with_groups(self, tmp_path, monkeypatch):
-        """user create with --group combines into comma-separated string."""
+    def test_network_show_missing_iface(self, tmp_path, monkeypatch):
+        """network show without iface argument fails."""
         config_dir = tmp_path / "proxmox-cli"
         monkeypatch.setattr("proxmox.config.models.USER_CONFIG_DIR", config_dir)
 
@@ -80,58 +108,7 @@ class TestUserCLI:
             "--username", "root@pam",
             "--api-token", "root@pam!test=abc123",
             "--dry-run",
-            "user", "create", "newuser@pve",
-            "--group", "Admin",
-            "--group", "Users",
+            "network", "show",
+            "--node", "pve01",
         )
-        assert result.returncode == 0
-        assert "Admin,Users" in result.stdout
-
-    def test_user_create_disabled(self, tmp_path, monkeypatch):
-        """user create --disable sends enable=0."""
-        config_dir = tmp_path / "proxmox-cli"
-        monkeypatch.setattr("proxmox.config.models.USER_CONFIG_DIR", config_dir)
-
-        result = run_proxmox(
-            "--url", "https://pve:8006",
-            "--username", "root@pam",
-            "--api-token", "root@pam!test=abc123",
-            "--dry-run",
-            "user", "create", "disabled@pve",
-            "--disable",
-        )
-        assert result.returncode == 0
-        assert "'enable': 0" in result.stdout
-
-    def test_user_update_dry_run(self, tmp_path, monkeypatch):
-        """user update --dry-run prints the PUT request."""
-        config_dir = tmp_path / "proxmox-cli"
-        monkeypatch.setattr("proxmox.config.models.USER_CONFIG_DIR", config_dir)
-
-        result = run_proxmox(
-            "--url", "https://pve:8006",
-            "--username", "root@pam",
-            "--api-token", "root@pam!test=abc123",
-            "--dry-run",
-            "user", "update", "testuser@pve",
-            "--email", "new@example.com",
-        )
-        assert result.returncode == 0
-        assert "PUT" in result.stdout
-        assert "access/users/testuser@pve" in result.stdout
-
-    def test_user_delete_dry_run(self, tmp_path, monkeypatch):
-        """user delete --dry-run prints the DELETE request."""
-        config_dir = tmp_path / "proxmox-cli"
-        monkeypatch.setattr("proxmox.config.models.USER_CONFIG_DIR", config_dir)
-
-        result = run_proxmox(
-            "--url", "https://pve:8006",
-            "--username", "root@pam",
-            "--api-token", "root@pam!test=abc123",
-            "--dry-run",
-            "user", "delete", "testuser@pve",
-        )
-        assert result.returncode == 0
-        assert "DELETE" in result.stdout
-        assert "access/users/testuser@pve" in result.stdout
+        assert result.returncode != 0

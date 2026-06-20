@@ -61,6 +61,7 @@ def build_root_parser() -> argparse.ArgumentParser:
     from proxmox.cli.cluster import register_cluster_parser
     from proxmox.cli.completion import register_completion_parser
     from proxmox.cli.container import register_container_parser
+    from proxmox.cli.network import register_network_parser
     from proxmox.cli.node import register_node_parser
     from proxmox.cli.pool import register_pool_parser
     from proxmox.cli.role import register_role_parser
@@ -74,6 +75,7 @@ def build_root_parser() -> argparse.ArgumentParser:
     register_backup_parser(subparsers)
     register_vm_parser(subparsers)
     register_node_parser(subparsers)
+    register_network_parser(subparsers)
     register_pool_parser(subparsers)
     register_container_parser(subparsers)
     register_storage_parser(subparsers)
@@ -214,7 +216,7 @@ GLOBAL_FLAGS_WITH_VALUE = {"--url", "--username", "--password", "--api-token", "
 def _hint_global_flags_order(argv: list[str]) -> None:
     """If user placed global flags after the resource, show a helpful hint."""
     resource_pos = -1
-    resources = {"acl", "auth", "backup", "vm", "node", "pool", "container", "storage", "cluster", "completion", "task", "user", "role"}
+    resources = {"acl", "auth", "backup", "vm", "node", "pool", "container", "storage", "cluster", "completion", "task", "user", "role", "network"}
     for i, arg in enumerate(argv):
         if arg in resources:
             resource_pos = i

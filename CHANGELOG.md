@@ -8,6 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Network management**: ``proxmox network`` (list, show).  Wraps
+  ``/nodes/{node}/network[/{iface}]``.  List all network interfaces on a
+  node with optional ``--type`` filtering (bridge, bond, vlan, eth, etc.).
+  Show detailed configuration for a single interface.
 - **Backup (vzdump) management**: ``proxmox backup`` (list, show, create,
   delete, tasks, defaults).  Wraps ``/nodes/{node}/vzdump`` for creating
   backups and ``/nodes/{node}/storage/{storage}/content`` for listing

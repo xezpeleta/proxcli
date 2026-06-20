@@ -19,6 +19,7 @@ Completed items are marked with a check. Implementation notes are preserved for 
 - [x] **VM cloud-init support** — `vm create` flags for citype, ciuser, cipassword, sshkeys, nameserver, searchdomain, cicustom + auto cloud-init drive creation. `vm cloudinit generate` for regeneration.
 - [x] **VM disk import** — `vm create --import-from <storage:path>` imports an existing disk image as VM boot disk.
 - [x] **Docs** — `docs/cloud-init.md` (cloud-init VM workflow), `docs/api-permissions.md` (minimum API privileges).
+- [x] **Network management** — `proxmox network` (list, show). Wraps `/nodes/{node}/network[/{iface}]`. Shows bridges, bonds, VLANs, physical NICs with config details. Type filtering support.
 - [x] **Backup (vzdump) management** — `proxmox backup` (list/show/create/delete/tasks/defaults). Wraps `/nodes/{node}/vzdump` and storage content endpoints. Supports snapshot/suspend/stop modes, compression, PBS.
 
 ## v1.1 — Polish & Usability
@@ -35,9 +36,6 @@ Completed items are marked with a check. Implementation notes are preserved for 
 ---
 
 ## v1.2 — Resource Coverage
-
-- [ ] **Network management**
-  - `proxmox network` subcommand: `list`, `show`, `update` for bridges, bonds, VLANs. Wraps `/nodes/{node}/network`.
 
 - [ ] **SDN (Software-Defined Networking)**
   - `proxmox sdn` subcommand: `zones`, `vnets`, `subnets`. Wraps `/cluster/sdn/*` endpoints.
