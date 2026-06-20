@@ -84,6 +84,46 @@ def register_vm_parser(subparsers: argparse._SubParsersAction) -> None:
     vm_delete.add_argument("--purge", action="store_true", help="Purge VM from all configurations")
     vm_delete.set_defaults(func=_vm_delete)
 
+    # --- snapshot ---
+    snap = vm_sub.add_parser("snapshot", help="Manage VM snapshots")
+    snap_sub = snap.add_subparsers(dest="snap_action", title="snapshot actions", required=True)
+
+    snap_list = snap_sub.add_parser("list", help="List snapshots")
+    snap_list.add_argument("vmid", type=vmid_type, help="VM ID")
+    snap_list.add_argument("--node", help="Node name (auto-detected if omitted)")
+    snap_list.set_defaults(func=_vm_snapshot_list)
+
+    snap_create = snap_sub.add_parser("create", help="Create a snapshot")
+    snap_create.add_argument("vmid", type=vmid_type, help="VM ID")
+    snap_create.add_argument("snapname", help="Snapshot name")
+    snap_create.add_argument("--node", help="Node name (auto-detected if omitted)")
+    snap_create.add_argument("--description", default=None, help="Snapshot description")
+    snap_create.add_argument("--vmstate", type=int, choices=[0, 1], default=0,
+                             help="Include RAM state (1=yes, 0=no, default: 0)")
+    snap_create.set_defaults(func=_vm_snapshot_create)
+
+    snap_show = snap_sub.add_parser("show", help="Show snapshot details")
+    snap_show.add_argument("vmid", type=vmid_type, help="VM ID")
+    snap_show.add_argument("snapname", help="Snapshot name")
+    snap_show.add_argument("--node", help="Node name (auto-detected if omitted)")
+    snap_show.set_defaults(func=_vm_snapshot_show)
+
+    snap_rollback = snap_sub.add_parser("rollback", help="Rollback to a snapshot")
+    snap_rollback.add_argument("vmid", type=vmid_type, help="VM ID")
+    snap_rollback.add_argument("snapname", help="Snapshot name")
+    snap_rollback.add_argument("--node", help="Node name (auto-detected if omitted)")
+    snap_rollback.add_argument("--start", type=int, choices=[0, 1], default=0,
+                               help="Start VM after rollback (1=yes, 0=no, default: 0)")
+    snap_rollback.set_defaults(func=_vm_snapshot_rollback)
+
+    snap_delete = snap_sub.add_parser("delete", help="Delete a snapshot")
+    snap_delete.add_argument("vmid", type=vmid_type, help="VM ID")
+    snap_delete.add_argument("snapname", help="Snapshot name")
+    snap_delete.add_argument("--node", help="Node name (auto-detected if omitted)")
+    snap_delete.add_argument("--force", type=int, choices=[0, 1], default=0,
+                             help="Force removal (1=yes, 0=no, default: 0)")
+    snap_delete.set_defaults(func=_vm_snapshot_delete)
+
     # --- firewall ---
     fw = vm_sub.add_parser("firewall", help="Manage VM firewall")
     fw_sub = fw.add_subparsers(dest="fw_resource", title="resources", required=True)
@@ -322,6 +362,76 @@ def _vm_delete(args: argparse.Namespace, client: ProxmoxClient) -> dict:
     if args.purge:
         params["purge"] = 1
     result = client.delete(f"/nodes/{node}/qemu/{args.vmid}", params=params or None)
+    return result if isinstance(result, dict) else {"data": result}
+
+
+# ---------------------------------------------------------------------------
+# VM snapshot handlers
+# ---------------------------------------------------------------------------
+
+def _vm_snapshot_list(args: argparse.Namespace, client: ProxmoxClient) -> dict | list:
+    node = _resolve_node(client, args.node, args.vmid)
+    if not node:
+        return {"error": f"VM {args.vmid} not found"}
+    result = client.get(f"/nodes/{node}/qemu/{args.vmid}/snapshot")
+    # Add _node for consistency
+    if isinstance(result, list):
+        for snap in result:
+            if isinstance(snap, dict):
+                snap["_node"] = node
+                snap["_vmid"] = args.vmid
+    return result
+
+
+def _vm_snapshot_create(args: argparse.Namespace, client: ProxmoxClient) -> dict:
+    node = _resolve_node(client, args.node, args.vmid)
+    if not node:
+        return {"error": f"VM {args.vmid} not found"}
+    data: dict = {"snapname": args.snapname}
+    if args.description:
+        data["description"] = args.description
+    if args.vmstate:
+        data["vmstate"] = args.vmstate
+    result = client.post(f"/nodes/{node}/qemu/{args.vmid}/snapshot", data=data)
+    return result if isinstance(result, dict) else {"data": result}
+
+
+def _vm_snapshot_show(args: argparse.Namespace, client: ProxmoxClient) -> dict:
+    node = _resolve_node(client, args.node, args.vmid)
+    if not node:
+        return {"error": f"VM {args.vmid} not found"}
+    result = client.get(f"/nodes/{node}/qemu/{args.vmid}/snapshot/{args.snapname}")
+    if isinstance(result, dict):
+        result["_node"] = node
+        result["_vmid"] = args.vmid
+    return result
+
+
+def _vm_snapshot_rollback(args: argparse.Namespace, client: ProxmoxClient) -> dict:
+    node = _resolve_node(client, args.node, args.vmid)
+    if not node:
+        return {"error": f"VM {args.vmid} not found"}
+    data: dict = {}
+    if args.start:
+        data["start"] = args.start
+    result = client.post(
+        f"/nodes/{node}/qemu/{args.vmid}/snapshot/{args.snapname}/rollback",
+        data=data or None,
+    )
+    return result if isinstance(result, dict) else {"data": result}
+
+
+def _vm_snapshot_delete(args: argparse.Namespace, client: ProxmoxClient) -> dict:
+    node = _resolve_node(client, args.node, args.vmid)
+    if not node:
+        return {"error": f"VM {args.vmid} not found"}
+    params: dict = {}
+    if args.force:
+        params["force"] = args.force
+    result = client.delete(
+        f"/nodes/{node}/qemu/{args.vmid}/snapshot/{args.snapname}",
+        params=params or None,
+    )
     return result if isinstance(result, dict) else {"data": result}
 
 
