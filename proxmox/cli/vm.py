@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+from typing import Any
 
 from proxmox.cli.firewall_helpers import add_firewall_rule_args, build_rule_data
 from proxmox.client.client import ProxmoxClient
@@ -27,10 +28,10 @@ def register_vm_parser(subparsers: argparse._SubParsersAction) -> None:
 
     # --- vm create ---
     vm_create = vm_sub.add_parser("create", help="Create a new VM")
-    vm_create.add_argument("--node", required=True, help="Target node")
+    vm_create.add_argument("--node", default=None, help="Target node (required if not in --file)")
     vm_create.add_argument("--vmid", type=vmid_type, default=None, help="VM ID (auto-assigned if omitted)")
-    vm_create.add_argument("--memory", type=int, required=True, help="Memory in MB")
-    vm_create.add_argument("--cores", type=int, default=1, help="CPU cores (default: 1)")
+    vm_create.add_argument("--memory", type=int, default=None, help="Memory in MB (required if not in --file)")
+    vm_create.add_argument("--cores", type=int, default=None, help="CPU cores (default: 1)")
     vm_create.add_argument(
         "--net", default=None, action="append", dest="net_ifaces",
         help="Network config (e.g. virtio=MAC,bridge=vmbr0). Repeat for multiple NICs."
@@ -54,6 +55,8 @@ def register_vm_parser(subparsers: argparse._SubParsersAction) -> None:
     vm_create.add_argument("--cicustom", default=None, help="Cloud-init custom config (user=...,vendor=...)")
     vm_create.add_argument("--import-from", default=None, dest="import_from",
                            help="Import disk from existing volume (e.g. local:import/deb12.qcow2)")
+    vm_create.add_argument("--file", default=None, dest="spec_file",
+                           help="YAML file with VM spec (flat Proxmox config keys). CLI flags override file values.")
     vm_create.set_defaults(func=_vm_create)
 
     # --- vm start ---
@@ -93,6 +96,12 @@ def register_vm_parser(subparsers: argparse._SubParsersAction) -> None:
     vm_delete.add_argument("--force", action="store_true", help="Force removal")
     vm_delete.add_argument("--purge", action="store_true", help="Purge VM from all configurations")
     vm_delete.set_defaults(func=_vm_delete)
+
+    # --- vm config ---
+    vm_config = vm_sub.add_parser("config", help="Show VM configuration (clean, suitable for --file import)")
+    vm_config.add_argument("vmid", type=vmid_type, help="VM ID")
+    vm_config.add_argument("--node", help="Node name (auto-detected if omitted)")
+    vm_config.set_defaults(func=_vm_config)
 
     # --- snapshot ---
     snap = vm_sub.add_parser("snapshot", help="Manage VM snapshots")
@@ -291,13 +300,64 @@ def _vm_show(args: argparse.Namespace, client: ProxmoxClient) -> dict:
     return resources
 
 
+def _vm_config(args: argparse.Namespace, client: ProxmoxClient) -> dict:
+    """Return clean VM config (no status/runtime info, no internal fields).
+
+    Suitable for piping through --output yaml to get a file ready for --file import.
+    """
+    from proxmox.cli.vm_spec import clean_vm_config
+
+    node = _resolve_node(client, args.node, args.vmid)
+    if not node:
+        return {"error": f"VM {args.vmid} not found on any node"}
+    config = client.get(f"/nodes/{node}/qemu/{args.vmid}/config")
+    if not isinstance(config, dict):
+        return {"error": f"Could not read config for VM {args.vmid}"}
+    # Add node for export convenience
+    cleaned = clean_vm_config(config)
+    cleaned["node"] = node
+    cleaned["vmid"] = args.vmid
+    return cleaned
+
+
 def _vm_create(args: argparse.Namespace, client: ProxmoxClient) -> dict:
+    """Create a VM from CLI flags and/or a YAML spec file.
+
+    CLI flags take precedence over --file values. The file format
+    uses native Proxmox VM config keys (name, memory, cores, net0, etc.).
+    """
+    # --- Load from file if --file is specified ---
+    file_spec: dict[str, Any] = {}
+    file_node: str | None = None
+
+    if args.spec_file:
+        from proxmox.cli.vm_spec import load_vm_spec
+
+        file_spec = load_vm_spec(args.spec_file)
+        if isinstance(file_spec, dict) and "error" in file_spec:
+            return file_spec  # propagate YAML/parse errors
+        # Extract node from file (not an API body param)
+        file_node = file_spec.pop("_node", None)
+
+    # --- Determine node: CLI flag > file > (required) ---
+    node: str | None = args.node
+    if not node and file_node:
+        node = file_node
+    if not node:
+        return {"error": "--node is required (or set 'node:' in the spec file)"}
+
+    # --- Build data dict: file_spec is base, CLI flags override ---
     vmid = resolve_vmid(client, args.vmid)
-    data: dict = {
-        "vmid": str(vmid),
-        "memory": str(args.memory),
-        "cores": str(args.cores),
-    }
+    data: dict[str, Any] = {"vmid": str(vmid)}
+
+    # Start with file_spec values
+    data.update(file_spec)
+
+    # Override with CLI flags (only when explicitly set)
+    if args.memory is not None:
+        data["memory"] = str(args.memory)
+    if args.cores is not None:
+        data["cores"] = str(args.cores)
     if args.name:
         data["name"] = args.name
     if args.bios:
@@ -312,18 +372,16 @@ def _vm_create(args: argparse.Namespace, client: ProxmoxClient) -> dict:
     # Network interfaces: net0, net1, ...
     if args.net_ifaces:
         for i, net_cfg in enumerate(args.net_ifaces):
-            # Pre-encode the net config for form body: = → %3D, : → %3A, , → %2C
             encoded = net_cfg.replace("=", "%3D").replace(":", "%3A").replace(",", "%2C")
             data[f"net{i}"] = encoded
+    # If no CLI nets but file has them, keep file's net keys as-is (already pre-encoded by vm_spec)
 
     # CD-ROM / ISO
     if args.cdrom:
-        # Build: file=storage:iso/file.iso,media=cdrom
-        # Pre-encode: = → %3D, : → %3A, , → %2C
         ide_raw = f"file={args.cdrom},media=cdrom"
         data["ide2"] = ide_raw.replace("=", "%3D").replace(":", "%3A").replace(",", "%2C")
 
-    # Disk
+    # Disk / import
     if args.disk:
         storage = args.storage or "local-lvm"
         if ":" not in args.disk:
@@ -332,20 +390,11 @@ def _vm_create(args: argparse.Namespace, client: ProxmoxClient) -> dict:
             disk_raw = args.disk
         data["scsi0"] = disk_raw.replace("=", "%3D").replace(":", "%3A").replace(",", "%2C")
     elif args.import_from:
-        # Import from existing volume: storage_id=0,import-from=<volid>
-        parts = args.import_from.split(":", 1)
-        if len(parts) == 2:
-            src_storage, src_file = parts
-        else:
-            return {"error": f"Invalid import-from format: {args.import_from}. Use <storage>:<path>"}
-        # Build: dst_storage:0,import-from=src_storage:path
         target_storage = args.storage or "rbd_ssd"
         import_raw = f"{target_storage}:0,import-from={args.import_from}"
         data["scsi0"] = import_raw.replace("=", "%3D").replace(":", "%3A").replace(",", "%2C")
 
     # Cloud-init
-    cloudinit_used = bool(args.citype or args.ciuser or args.cipassword or args.sshkeys
-                        or args.nameserver or args.searchdomain or args.cicustom)
     if args.citype:
         data["citype"] = args.citype
     if args.ciuser:
@@ -362,24 +411,51 @@ def _vm_create(args: argparse.Namespace, client: ProxmoxClient) -> dict:
         # sshkeys can be a file path or inline content
         try:
             with open(args.sshkeys) as f:
-                sshkeys_value = f.read().strip()
+                data["sshkeys"] = f.read().strip().replace("\n", "%0A").replace("\r", "%0D").replace("=", "%3D").replace(",", "%2C").replace(":", "%3A")
         except (OSError, FileNotFoundError):
-            sshkeys_value = args.sshkeys
-        # URL-encode the SSH keys for form body
-        # Replace newlines with %0A
-        data["sshkeys"] = sshkeys_value.replace("\n", "%0A").replace("\r", "%0D").replace("=", "%3D").replace(",", "%2C").replace(":", "%3A")
-    # Add cloud-init drive if cloud-init is being used and no cdrom is set
-    if cloudinit_used and not args.cdrom:
+            data["sshkeys"] = args.sshkeys.replace("\n", "%0A").replace("\r", "%0D").replace("=", "%3D").replace(",", "%2C").replace(":", "%3A")
+
+    # Cloud-init drive: add if cloud-init params present and no cdrom set
+    cloudinit_keys = {"citype", "ciuser", "cipassword", "sshkeys", "nameserver", "searchdomain", "cicustom"}
+    has_cloudinit = any(k in data for k in cloudinit_keys)
+    has_cdrom = "ide2" in data and "cloudinit" not in str(data.get("ide2", ""))
+    if has_cloudinit and not has_cdrom:
         data["ide2"] = "local:cloudinit,media=cdrom"
 
-    # Build form-encoded body manually — httpx's data= would double-encode %
-    from urllib.parse import urlencode
-    body = urlencode(data, safe="%")  # safe="%" means don't re-encode existing %XX
+    # Validate required fields
+    if "memory" not in data:
+        return {"error": "--memory is required (or set 'memory:' in the spec file)"}
+    if "cores" not in data:
+        data["cores"] = "1"  # default when neither CLI nor file provides it
 
-    result = client.request("POST", f"/nodes/{args.node}/qemu", content=body)
+    # Pre-encode values from file_spec that might contain special chars (:, =, ,)
+    # File spec values are passed as-is; only CLI values go through manual encoding.
+    # For file_spec, we assume the user writes native Proxmox values which need encoding.
+    _encode_spec_values_for_api(data)
+
+    # Build form-encoded body
+    from urllib.parse import urlencode
+    body = urlencode(data, safe="%")
+
+    result = client.request("POST", f"/nodes/{node}/qemu", content=body)
     return result if isinstance(result, dict) else {"data": result}
 
 
+def _encode_spec_values_for_api(data: dict[str, Any]) -> None:
+    """Pre-encode values that contain special characters for the Proxmox API.
+
+    The Proxmox API's form parser treats ``:``, ``,``, and ``=`` as delimiters
+    within values. We URL-encode these characters to prevent parsing issues.
+    Only encodes values that aren't already pre-encoded (don't contain %XX sequences).
+    """
+    for key in list(data):
+        value = str(data[key])
+        # Skip if already pre-encoded (contains %XX patterns)
+        if "%" in value:
+            continue
+        # Only encode values that actually contain special chars
+        if any(c in value for c in (":", ",", "=")):
+            data[key] = value.replace("=", "%3D").replace(":", "%3A").replace(",", "%2C")
 def _vm_start(args: argparse.Namespace, client: ProxmoxClient) -> dict:
     node = _resolve_node(client, args.node, args.vmid)
     if not node:

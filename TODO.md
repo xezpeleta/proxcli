@@ -51,7 +51,12 @@ Completed items are marked with a check. Implementation notes are preserved for 
   - `proxmox vm start --all-on-node pve01` (start all VMs on a node). `proxmox vm snapshot --vmid 100,101,102` (apply to multiple IDs).
 
 - [ ] **Config file templating**
-  - Ability to define VM/container specs in a YAML/JSON file and create from it: `proxmox vm create --file my-vm.yaml`.
+  - ``vm create --file spec.yaml`` for declarative VM specs.  File format
+    mirrors the native Proxmox VM config (flat key-value: ``name``,
+    ``memory``, ``cores``, ``net0``, ``scsi0``, ``ciuser``, etc.).
+  - ``vm show <id> --output yaml`` exports existing VM config in the
+    same flat format (strips internal fields like ``digest``, ``vmgenid``).
+    Export → edit → recreate loop.
 
 - [ ] **Plugin system for custom commands**
   - Allow users to extend the CLI with custom subcommands via a plugins directory.
