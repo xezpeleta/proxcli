@@ -52,3 +52,22 @@ jobs:
         with:
           name: dist
           path: dist/
+
+  publish:
+    runs-on: ubuntu-24.04
+    if: github.ref == 'refs/heads/main'
+    needs: [build]
+    environment: pypi
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - uses: astral-sh/setup-uv@d4a5f06b29e0840685266df17132b0834efba237 # v5.2.2
+        with:
+          enable-cache: true
+
+      - uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4.2.1
+        with:
+          name: dist
+          path: dist/
+
+      - run: uv publish --token "${{ secrets.PYPI_TOKEN }}"
