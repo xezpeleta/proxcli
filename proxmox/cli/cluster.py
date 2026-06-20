@@ -143,7 +143,8 @@ def _cl_status(_args: argparse.Namespace, client: ProxmoxClient) -> dict | list:
 
 
 def _cl_log(args: argparse.Namespace, client: ProxmoxClient) -> list:
-    return client.get("/cluster/log", params={"max": args.limit})
+    data = client.get("/cluster/log", params={"max": args.limit})
+    return list(reversed(data)) if isinstance(data, list) else data
 
 
 def _cl_options(_args: argparse.Namespace, client: ProxmoxClient) -> dict:

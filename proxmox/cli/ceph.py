@@ -102,13 +102,13 @@ def _ceph_log(args: argparse.Namespace, client: ProxmoxClient) -> list:
     all_entries.sort(key=lambda e: e.get("t", ""), reverse=True)
     entries = all_entries[: args.limit]
 
-    return [
+    return list(reversed([
         {
             "time": entry.get("t", ""),
             "node": entry.get("_node", ""),
         }
         for entry in entries
-    ]
+    ]))
 
 
 def _ceph_osd(args: argparse.Namespace, client: ProxmoxClient) -> list:
