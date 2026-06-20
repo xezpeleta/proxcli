@@ -11,9 +11,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **vm create cloud-init support**: ``--citype``, ``--ciuser``,
   ``--cipassword``, ``--sshkeys`` (file path or inline),
   ``--nameserver``, ``--searchdomain``, ``--cicustom``.
-- **vm cloudinit generate**: ``proxmox vm cloudinit generate <vmid>``
-  regenerates the cloud-init ISO from the VM's current config so
-  cloud-init changes take effect on next boot.
+- **vm create --import-from**: import an existing disk image from storage
+  as the VM's boot disk (e.g. ``--import-from local:import/deb12.qcow2``).
+  Requires a Proxmox storage with ``images`` or ``import`` content types.
+- **vm cloud-init drive auto-creation**: when cloud-init flags are used
+  on ``vm create``, an ``ide2`` cloud-init drive is automatically attached.
+  Proxmox VE 9 regenerates the ISO on config change — no separate generate step.
+- **vm cloudinit generate**: re-submits the current ``citype`` to trigger
+  regeneration.  Adapted for Proxmox VE 9 which removed the
+  ``POST /cloudinit`` endpoint.
+- **docs/cloud-init.md**: complete guide on creating and managing
+  cloud-init VMs with proxcli, including prerequisites, examples,
+  custom user-data, and troubleshooting.
 
 ## [0.8.2] - 2026-06-20
 
