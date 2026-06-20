@@ -11,11 +11,12 @@ Completed items are marked with a check. Implementation notes are preserved for 
 - [x] **Firewall management** — cluster, node, VM, and container. Options, enable/disable, policy, rules (CRUD), aliases (cluster), ipsets with CIDR mgmt (cluster), refs.
 - [x] **Pool management** — `proxmox pool`: list, show, create, update, delete. Wraps `/pools`.
 - [x] **Shell completions** — `proxmox completion bash|zsh|fish`. Dynamic, introspects the parser tree.
+- [x] **VM snapshot management** — `proxmox vm snapshot`: list, create, show, rollback, delete. Wraps `/nodes/{node}/qemu/{vmid}/snapshot`.
+- [x] **QEMU guest agent interfaces** — `proxmox vm agent interfaces <vmid>`. Wraps `/nodes/{node}/qemu/{vmid}/agent/network-get-interfaces`.
+- [x] **Streaming task logs** — `proxmox task log <upid> [--follow]`. Polls `/nodes/{node}/tasks/{upid}/log`.
+- [x] **Global flag hint** — If user places `--output` / `--dry-run` / etc. after the resource, a hint suggests the correct order.
 
 ## v1.1 — Polish & Usability
-
-- [ ] **Streaming task logs (`--follow`)**
-  - `proxmox task log <upid> --follow` that streams task output in real time (like `tail -f`). Requires httpx streaming.
 
 - [ ] **Startup time optimization**
   - Current `proxmox --help` takes ~350ms. Lazy-load subcommand modules so only the requested resource's code is imported. Move `import rich`, `import yaml` inside formatter functions. Target: <200ms.

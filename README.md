@@ -154,13 +154,25 @@ proxmox completion fish > ~/.config/fish/completions/proxmox.fish
 ```bash
 proxmox vm list [--node <node>]
 proxmox vm show <vmid> [--node <node>]
-proxmox vm create --node <node> --vmid <id> --memory <mb> [--cores <n>] [--name <name>] [--storage <name>] [--net <config>]
+proxmox vm create --node <node> --memory <mb> [--vmid <id>] [--cores <n>] \
+    [--name <name>] [--cdrom <iso>] [--net <config>] [--disk <size>] \
+    [--scsihw <type>] [--bios seabios|ovmf] [--machine <type>] [--boot <order>]
 proxmox vm start <vmid> [--node <node>]
 proxmox vm stop <vmid> [--node <node>]
 proxmox vm reboot <vmid> [--node <node>]
 proxmox vm suspend <vmid> [--node <node>]
 proxmox vm resume <vmid> [--node <node>]
 proxmox vm delete <vmid> [--node <node>] [--force] [--purge]
+
+# VM snapshots
+proxmox vm snapshot list <vmid> [--node <node>]
+proxmox vm snapshot create <vmid> <snapname> [--description <text>] [--vmstate 1]
+proxmox vm snapshot show <vmid> <snapname> [--node <node>]
+proxmox vm snapshot rollback <vmid> <snapname> [--start 1]
+proxmox vm snapshot delete <vmid> <snapname> [--force 1]
+
+# VM guest agent
+proxmox vm agent interfaces <vmid> [--node <node>]
 
 # VM firewall
 proxmox vm firewall options <vmid> [--node <node>]
