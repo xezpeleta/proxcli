@@ -342,6 +342,12 @@ proxmox pool delete <poolid>
 ```bash
 proxmox cluster status
 
+# Ceph management
+proxmox ceph status                          # cluster health: OSDs, PGs, usage, monitors
+proxmox ceph osd [--node <node>]             # OSD list with disk model/size/health/wearout
+proxmox ceph log [--node <node>] [--limit N] # recent Ceph log entries
+proxmox ceph disks [--node <node>]           # physical disks: device, model, health, wearout, OSD
+
 # Cluster firewall
 proxmox cluster firewall options
 proxmox cluster firewall enable

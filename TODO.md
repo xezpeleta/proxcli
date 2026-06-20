@@ -21,6 +21,8 @@ Completed items are marked with a check. Implementation notes are preserved for 
 - [x] **Docs** — `docs/cloud-init.md` (cloud-init VM workflow), `docs/api-permissions.md` (minimum API privileges).
 - [x] **Network management** — `proxmox network` (list, show). Wraps `/nodes/{node}/network[/{iface}]`. Shows bridges, bonds, VLANs, physical NICs with config details. Type filtering support.
 - [x] **Backup (vzdump) management** — `proxmox backup` (list/show/create/delete/tasks/defaults). Wraps `/nodes/{node}/vzdump` and storage content endpoints. Supports snapshot/suspend/stop modes, compression, PBS.
+- [x] **Ceph & disk management** — `proxmox ceph` (status, osd, log, disks). Cluster health, OSD-to-disk mapping, wearout tracking, Ceph logs.
+- [x] **Config loader made read-only** — `auth login`/`auth clear` removed. `PROXMOX_CONFIG_DIR` env var for custom config path.
 
 ## v1.1 — Polish & Usability
 

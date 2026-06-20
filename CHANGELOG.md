@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Ceph & disk management**: ``proxmox ceph status`` (cluster health:
+  OSDs, PGs, usage, monitors, warnings), ``proxmox ceph osd [--node]``
+  (OSD list mapped to physical disks with model/size/wearout),
+  ``proxmox ceph log [--node] [--limit N]`` (Ceph log entries),
+  ``proxmox ceph disks [--node]`` (all physical disks with health,
+  wearout, SMART status, OSD mapping).
+
+### Changed
+- **ConfigLoader is now read-only**.  ``proxmox auth login`` and
+  ``proxmox auth clear`` have been removed — proxcli never creates,
+  modifies, or deletes ``credentials.json``.  Users must create this
+  file manually.  Added ``PROXMOX_CONFIG_DIR`` env var for overriding
+  the user config directory.
+- **``--version`` outputs ``proxcli 0.11.0``** instead of
+  ``proxmox 0.11.0`` to match the PyPI package name.
+
 ## [0.11.0] - 2026-06-20
 
 ### Added
