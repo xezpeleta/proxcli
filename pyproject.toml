@@ -1,6 +1,6 @@
 [project]
 name = "proxcli"
-version = "0.6.0"
+version = "0.7.0"
 description = "A CLI tool to interact with Proxmox VE nodes and clusters via the REST API"
 readme = "README.md"
 authors = [

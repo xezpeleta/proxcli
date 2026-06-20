@@ -280,3 +280,81 @@ class ProxmoxClient:
             import sys
 
             print(f"[proxmox] {message}", file=sys.stderr)
+
+    # ------------------------------------------------------------------
+    # Task log streaming
+    # ------------------------------------------------------------------
+
+    def stream_task_log(self, upid: str, *, follow: bool = False) -> None:
+        """Stream task log lines to stdout.
+
+        Args:
+            upid: Task UPID string (e.g. UPID:pve01:00000010:...).
+            follow: If True, keep polling until task exits.
+        """
+        import sys
+
+        node = self._extract_node_from_upid(upid)
+        if not node:
+            print(f"Error: could not extract node from UPID: {upid}", file=sys.stderr)
+            return
+
+        if self._dry_run:
+            self._print_dry_run("GET", f"{self._base_url}/api2/json/nodes/{node}/tasks/{upid}/log", None)
+            if follow:
+                print("[dry-run] --follow would poll /tasks/{upid}/status until stopped")
+            return
+
+        start = 0
+        seen_lines: set[int] = set()
+
+        while True:
+            try:
+                log_data = self.request("GET", f"/nodes/{node}/tasks/{upid}/log", params={"start": start})
+            except ProxmoxAPIError:
+                if not follow:
+                    break
+                time.sleep(1)
+                continue
+
+            if isinstance(log_data, dict):
+                log_data = log_data.get("data", []) if "data" in log_data else []
+
+            if isinstance(log_data, list):
+                for entry in log_data:
+                    if not isinstance(entry, dict):
+                        continue
+                    n = entry.get("n", 0)
+                    if n in seen_lines:
+                        continue
+                    seen_lines.add(n)
+                    line = entry.get("t", "")
+                    print(line)
+
+            # Check if task is done
+            if follow:
+                try:
+                    status_data = self.request("GET", f"/nodes/{node}/tasks/{upid}/status")
+                    if isinstance(status_data, dict):
+                        status = status_data.get("status")
+                        if status == "stopped":
+                            exit_code = status_data.get("exitstatus")
+                            if exit_code is not None:
+                                print(f"\nTask completed with exit code: {exit_code}")
+                            break
+                except ProxmoxAPIError:
+                    pass
+
+            if not follow:
+                break
+
+            start = len(seen_lines)
+            time.sleep(1)
+
+    @staticmethod
+    def _extract_node_from_upid(upid: str) -> str | None:
+        """Parse node name from a Proxmox UPID string: UPID:{node}:..."""
+        parts = upid.split(":")
+        if len(parts) >= 2:
+            return parts[1]
+        return None

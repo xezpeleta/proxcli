@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-06-20
+
+### Added
+- Task log streaming: `proxmox task log <upid> [--follow]`.
+  Without `--follow`, prints available log lines. With `--follow`,
+  polls every second until the task exits (like `tail -f`).
+  Also added `ProxmoxClient._extract_node_from_upid()` as a static helper.
+
 ## [0.6.0] - 2026-06-20
 
 ### Added
@@ -74,6 +82,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CSRF ticket auto-refresh on 401.
 - AI-agent-friendly: default JSON output, strict exit codes, `--dry-run` mode.
 
+[0.7.0]: https://github.com/xezpeleta/proxcli/releases/tag/v0.7.0
 [0.6.0]: https://github.com/xezpeleta/proxcli/releases/tag/v0.6.0
 [0.5.0]: https://github.com/xezpeleta/proxcli/releases/tag/v0.5.0
 [0.4.0]: https://github.com/xezpeleta/proxcli/releases/tag/v0.4.0

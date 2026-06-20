@@ -22,13 +22,20 @@ def register_task_parser(subparsers: argparse._SubParsersAction) -> None:
     task_show.add_argument("upid", help="Task UPID")
     task_show.set_defaults(func=_task_show)
 
+    # --- task log ---
+    task_log = task_sub.add_parser("log", help="Show task log output")
+    task_log.add_argument("upid", help="Task UPID")
+    task_log.add_argument(
+        "--follow", "-f",
+        action="store_true",
+        help="Follow log output until task completes (like tail -f)",
+    )
+    task_log.set_defaults(func=_task_log)
+
 
 def _extract_node_from_upid(upid: str) -> str | None:
     """Parse node name from a Proxmox UPID string: UPID:{node}:..."""
-    parts = upid.split(":")
-    if len(parts) >= 2:
-        return parts[1]
-    return None
+    return ProxmoxClient._extract_node_from_upid(upid)
 
 
 def _task_list(args: argparse.Namespace, client: ProxmoxClient) -> dict | list:
@@ -63,3 +70,8 @@ def _task_show(args: argparse.Namespace, client: ProxmoxClient) -> dict:
     if not node:
         return {"error": f"Could not extract node from UPID: {args.upid}"}
     return client.get(f"/nodes/{node}/tasks/{args.upid}/status")
+
+
+def _task_log(args: argparse.Namespace, client: ProxmoxClient) -> None:
+    """Stream task log (returns None so main.py skips JSON formatting)."""
+    client.stream_task_log(args.upid, follow=args.follow)

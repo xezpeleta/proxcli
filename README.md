@@ -253,7 +253,11 @@ proxmox cluster firewall refs [--type alias|ipset|group]
 ```bash
 proxmox task list [--node <node>]
 proxmox task show <upid>
+proxmox task log <upid> [--follow]
 ```
+
+`proxmox task log --follow` polls `/nodes/{node}/tasks/{upid}/log` every second
+and streams new lines until the task completes (like `tail -f`).
 
 ## Output Formats
 
