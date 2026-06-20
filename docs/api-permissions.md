@@ -115,6 +115,7 @@ Path: /vms/100-199              Role: PVECloudInitAdmin
 | Cluster firewall | `Sys.Modify`, `Sys.Audit` |
 | Node firewall | `Sys.Modify` |
 | VM firewall | `VM.Allocate` (already included) |
+| ACL management | `Permissions.Modify` (Administrator role) |
 
 ## Full Admin Role (for comparison)
 
