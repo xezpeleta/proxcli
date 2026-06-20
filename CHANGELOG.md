@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-06-20
+
+### Changed
+- `proxmox vm create --vmid` and `proxmox container create --vmid` are now optional.
+  The next free VMID is auto-assigned via the `/cluster/nextid` API when omitted.
+
 ## [0.1.0] - 2026-06-20
 
 ### Added
@@ -26,4 +32,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CSRF ticket auto-refresh on 401.
 - AI-agent-friendly: default JSON output, strict exit codes, `--dry-run` mode.
 
+[0.1.1]: https://github.com/xezpeleta/proxcli/releases/tag/v0.1.1
 [0.1.0]: https://github.com/xezpeleta/proxcli/releases/tag/v0.1.0
