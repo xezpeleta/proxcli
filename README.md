@@ -152,7 +152,7 @@ For password auth, use `"auth_method": "password"` with a `"password"` field ins
 | `--password` | — | Password |
 | `--password-stdin` | — | Read password from stdin |
 | `--api-token` | — | API token (`user!tokenid=secret`) |
-| `--output` | `json` | Output format: `json`, `table`, `yaml` |
+| `--output` | `json` | Output format: `json`, `table`, `yaml`, `log` |
 | `--columns` | all | Columns to display in table output (e.g. `--columns vmid,name,status`) |
 | `--dry-run` | off | Print the API request without executing |
 | `--insecure` | off | Skip TLS verification |

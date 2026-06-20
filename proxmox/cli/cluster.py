@@ -20,7 +20,7 @@ def register_cluster_parser(subparsers: argparse._SubParsersAction) -> None:
     # --- cluster log ---
     cl_log = cl_sub.add_parser("log", help="Show cluster log")
     cl_log.add_argument("--limit", type=int, default=50, help="Number of entries (default: 50)")
-    cl_log.set_defaults(func=_cl_log)
+    cl_log.set_defaults(func=_cl_log, output_format="log")
 
     # --- cluster options ---
     cl_opts = cl_sub.add_parser("options", help="Show cluster-wide options")

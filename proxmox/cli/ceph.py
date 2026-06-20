@@ -20,7 +20,7 @@ def register_ceph_parser(subparsers: argparse._SubParsersAction) -> None:
     log = ceph_sub.add_parser("log", help="Show recent Ceph log entries")
     log.add_argument("--node", help="Show logs for a specific node (default: all nodes)")
     log.add_argument("--limit", type=int, default=50, help="Number of log entries (default: 50)")
-    log.set_defaults(func=_ceph_log)
+    log.set_defaults(func=_ceph_log, output_format="log")
 
     # --- ceph osd ---
     osd = ceph_sub.add_parser("osd", help="List Ceph OSDs")

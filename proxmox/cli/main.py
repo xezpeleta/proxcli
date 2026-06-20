@@ -34,7 +34,7 @@ def build_root_parser() -> argparse.ArgumentParser:
     parser.add_argument("--api-token", help="API token in format: user!tokenid=secret")
     parser.add_argument(
         "--output",
-        choices=["json", "table", "yaml"],
+        choices=["json", "table", "yaml", "log"],
         default="json",
         help="Output format (default: json)",
     )
@@ -255,6 +255,26 @@ def _hint_global_flags_order(argv: list[str]) -> None:
             return
 
 
+def _resolve_output(args: argparse.Namespace) -> str:
+    """Resolve the effective output format.
+
+    If the user explicitly passed --output on the command line, use that.
+    Otherwise, use the subparser's output_format default hint if set.
+    Falls back to 'json'.
+    """
+    # Check if --output was explicitly passed anywhere on the command line
+    for i, arg in enumerate(sys.argv):
+        if arg == "--output" and i + 1 < len(sys.argv):
+            return sys.argv[i + 1]
+        if arg.startswith("--output="):
+            return arg.split("=", 1)[1]
+    # Use the subparser hint
+    hint = getattr(args, "output_format", None)
+    if hint:
+        return hint
+    return args.output
+
+
 def main(argv: list[str] | None = None) -> None:
     """Main entry point."""
     parser = build_root_parser()
@@ -285,7 +305,7 @@ def main(argv: list[str] | None = None) -> None:
                         print(result)
                     else:
                         output = format_output(
-                            result, args.output, columns=getattr(args, "columns", None)
+                            result, _resolve_output(args), columns=getattr(args, "columns", None)
                         )
                         print(output)
             return
@@ -298,7 +318,7 @@ def main(argv: list[str] | None = None) -> None:
             result = args.func(args, client)
             if result is not None:
                 output = format_output(
-                    result, args.output, columns=getattr(args, "columns", None)
+                    result, _resolve_output(args), columns=getattr(args, "columns", None)
                 )
                 print(output)
         else:
@@ -309,7 +329,7 @@ def main(argv: list[str] | None = None) -> None:
         log_error(str(exc))
         sys.exit(1)
     except ProxmoxAPIError as exc:
-        if args.output == "json":
+        if _resolve_output(args) == "json":
             print(
                 format_output(
                     {"error": exc.message, "status_code": exc.status_code}, "json"
