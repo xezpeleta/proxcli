@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-06-20
+
+### Fixed
+- API token authentication: Removed incorrect base64 encoding.
+  Proxmox expects `PVEAPIToken=user@realm!tokenid=secret` as plain text
+  in the Authorization header, not base64-encoded.
+- Dry-run mode now always sets API token headers so that
+  `--dry-run` output accurately reflects the Authorization header
+  that would be sent. (Password auth is still skipped in dry-run
+  since it requires a network call.)
+
 ## [0.7.0] - 2026-06-20
 
 ### Added
@@ -82,6 +93,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CSRF ticket auto-refresh on 401.
 - AI-agent-friendly: default JSON output, strict exit codes, `--dry-run` mode.
 
+[0.7.1]: https://github.com/xezpeleta/proxcli/releases/tag/v0.7.1
 [0.7.0]: https://github.com/xezpeleta/proxcli/releases/tag/v0.7.0
 [0.6.0]: https://github.com/xezpeleta/proxcli/releases/tag/v0.6.0
 [0.5.0]: https://github.com/xezpeleta/proxcli/releases/tag/v0.5.0

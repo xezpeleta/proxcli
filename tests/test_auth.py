@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import base64
-
 import pytest
 
 from proxmox.client.auth import AuthMethod
@@ -60,9 +58,7 @@ class TestAuthManager:
         assert auth_manager.method == AuthMethod.API_TOKEN
 
         headers = auth_manager.get_headers()
-        expected_raw = "root@pam!my-token=my-secret"
-        expected_encoded = base64.b64encode(expected_raw.encode()).decode()
-        assert headers["Authorization"] == f"PVEAPIToken {expected_encoded}"
+        assert headers["Authorization"] == "PVEAPIToken=root@pam!my-token=my-secret"
         assert "Cookie" not in headers
         assert "CSRFPreventionToken" not in headers
 

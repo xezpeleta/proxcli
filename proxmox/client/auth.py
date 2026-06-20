@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import base64
 from enum import Enum
 from typing import Any
 
@@ -63,9 +62,7 @@ class AuthManager:
 
     def set_api_token(self, user: str, token_id: str, secret: str) -> None:
         """Use a Proxmox API token for authentication."""
-        raw = f"{user}!{token_id}={secret}"
-        encoded = base64.b64encode(raw.encode()).decode()
-        self._auth_header = f"PVEAPIToken {encoded}"
+        self._auth_header = f"PVEAPIToken={user}!{token_id}={secret}"
         self._method = AuthMethod.API_TOKEN
         self._ticket = None
         self._csrf_token = None

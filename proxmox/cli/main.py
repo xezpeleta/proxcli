@@ -149,21 +149,19 @@ def _build_client(overrides: dict[str, Any], args: argparse.Namespace) -> Proxmo
 
     auth_mgr = AuthManager()
 
-    # Don't authenticate if dry-run (no actual API calls will be made)
-    if not args.dry_run:
-        if overrides["api_token_id"] and overrides["api_token_secret"]:
-            auth_mgr.set_api_token(
-                overrides["username"] or "root@pam",
-                overrides["api_token_id"],
-                overrides["api_token_secret"],
-            )
-        elif overrides["password"]:
-            auth_mgr.authenticate_password(
-                overrides["url"],
-                overrides["username"] or "root@pam",
-                overrides["password"],
-                verify=overrides["verify_tls"],
-            )
+    if overrides["api_token_id"] and overrides["api_token_secret"]:
+        auth_mgr.set_api_token(
+            overrides["username"] or "root@pam",
+            overrides["api_token_id"],
+            overrides["api_token_secret"],
+        )
+    elif overrides["password"] and not args.dry_run:
+        auth_mgr.authenticate_password(
+            overrides["url"],
+            overrides["username"] or "root@pam",
+            overrides["password"],
+            verify=overrides["verify_tls"],
+        )
 
     client = ProxmoxClient(
         base_url=overrides["url"],
