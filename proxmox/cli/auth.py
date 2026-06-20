@@ -267,3 +267,30 @@ def _auth_check(args: argparse.Namespace, client: ProxmoxClient) -> None:
         console.print("[bold green]✓ All permissions configured correctly!")
     else:
         console.print("[bold yellow]⚠ Some permissions are missing. Run 'proxmox auth setup' or check docs/api-permissions.md")
+
+    # ── Check for stray/leftover roles on the token ──
+    loader = ConfigLoader()
+    creds = loader.load()
+    token_ug = f"{creds.username}!{creds.api_token_id}" if creds.api_token_id else creds.username
+
+    acls = client.get("/access/acl")
+    token_acls = [a for a in acls if a.get("ugid") == token_ug and a.get("type") == "token"]
+    expected_roles = set("proxcli-" + suffix for suffix in ["sys", "storage", "vm", "node"])
+    stray = [a for a in token_acls if a.get("roleid") not in expected_roles]
+
+    if stray:
+        console.print()
+        console.print(
+            f"[bold yellow]⚠ The token [bold]{token_ug}[/] has extra roles[/] "
+            f"[dim](not needed after initial setup)[/]:"
+        )
+        for a in stray:
+            console.print(f"     Path: [bold]{a['path']:<10s}[/]  Role: [bold red]{a['roleid']}[/]")
+        console.print()
+        console.print("   Remove them in Datacenter → Permissions → API Token Permissions.")
+        console.print("   Keep only: [bold green]proxcli-sys, proxcli-storage, proxcli-vm, proxcli-node[/]")
+        console.print()
+        # Add note to summary
+        console.print(
+            f"[bold yellow]⚠ {len(stray)} stray role(s) — remove after verifying proxcli roles work.[/]"
+        )
