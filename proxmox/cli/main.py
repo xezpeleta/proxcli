@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+from importlib.metadata import version
 from typing import Any
 
 from proxmox.client.auth import AuthManager
@@ -48,7 +49,7 @@ def build_root_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--verbose", action="store_true", help="Enable debug output to stderr")
     parser.add_argument(
-        "--version", action="version", version="proxmox 0.1.0"
+        "--version", action="version", version=f"proxmox {version('proxcli')}"
     )
 
     subparsers = parser.add_subparsers(dest="resource", title="resources", required=False)
