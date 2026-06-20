@@ -2,15 +2,20 @@
 
 Planned improvements for future releases. Items are roughly ordered by priority.
 
+Completed items are marked with a check. Implementation notes are preserved for context.
+
 ---
+
+## ✅ Done
+
+- [x] **Firewall management** — cluster, node, VM, and container. Options, enable/disable, policy, rules (CRUD), aliases (cluster), ipsets with CIDR mgmt (cluster), refs.
+- [x] **Pool management** — `proxmox pool`: list, show, create, update, delete. Wraps `/pools`.
+- [x] **Shell completions** — `proxmox completion bash|zsh|fish`. Dynamic, introspects the parser tree.
 
 ## v1.1 — Polish & Usability
 
-- [ ] **Shell completions**
-  - Add `proxmox completion bash|zsh|fish` subcommand that emits a completion script. Use argparse's built-in completion or a lightweight generator. Makes tab-completion work for all subcommands and flags.
-
 - [ ] **Streaming task logs (`--follow`)**
-  - `proxmox task log <upid>` that streams task output in real time (like `tail -f`). Requires httpx streaming support (already viable — httpx is the chosen HTTP client).
+  - `proxmox task log <upid> --follow` that streams task output in real time (like `tail -f`). Requires httpx streaming.
 
 - [ ] **Startup time optimization**
   - Current `proxmox --help` takes ~350ms. Lazy-load subcommand modules so only the requested resource's code is imported. Move `import rich`, `import yaml` inside formatter functions. Target: <200ms.
@@ -29,16 +34,12 @@ Planned improvements for future releases. Items are roughly ordered by priority.
   - `proxmox backup` subcommand: `list`, `create`, `show`, `delete`. Wrap `/nodes/{node}/vzdump` and `/nodes/{node}/storage/{storage}/content` for backup files.
 
 - [ ] **User & permission management**
-  - `proxmox user` subcommand: `list`, `show`, `create`, `update`, `delete`. Wraps `/access/users`, `/access/acl`, `/access/roles`.
-
-- [ ] **Pool management**
-  - `proxmox pool` subcommand: `list`, `show`, `create`, `update`, `delete`. Wraps `/pools`.
+  - `proxmox user` subcommand: `list`, `show`, `create`, `update`, `delete`.
+  - `proxmox role` subcommand: `list`, `show`, `create`, `update`, `delete`.
+  - `proxmox acl` subcommand: `list`, `show`. Wraps `/access/users`, `/access/roles`, `/access/acl`, `/access/groups`.
 
 - [ ] **Network management**
   - `proxmox network` subcommand: `list`, `show`, `update` for bridges, bonds, VLANs. Wraps `/nodes/{node}/network`.
-
-- [ ] **Firewall management**
-  - `proxmox firewall` subcommand: `list`, `show`, `enable`, `disable`, `create rule`, `delete rule`. Wraps `/nodes/{node}/firewall`, `/cluster/firewall`.
 
 - [ ] **SDN (Software-Defined Networking)**
   - `proxmox sdn` subcommand: `zones`, `vnets`, `subnets`. Wraps `/cluster/sdn/*` endpoints.
