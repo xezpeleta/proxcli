@@ -141,6 +141,15 @@ def register_vm_parser(subparsers: argparse._SubParsersAction) -> None:
     agent_ifaces.add_argument("--node", help="Node name (auto-detected if omitted)")
     agent_ifaces.set_defaults(func=_vm_agent_interfaces)
 
+    # --- cloudinit ---
+    cloudinit = vm_sub.add_parser("cloudinit", help="Manage cloud-init")
+    cloudinit_sub = cloudinit.add_subparsers(dest="cloudinit_action", title="cloud-init actions", required=True)
+
+    ci_generate = cloudinit_sub.add_parser("generate", help="Regenerate cloud-init ISO from current config")
+    ci_generate.add_argument("vmid", type=vmid_type, help="VM ID")
+    ci_generate.add_argument("--node", help="Node name (auto-detected if omitted)")
+    ci_generate.set_defaults(func=_vm_cloudinit_generate)
+
     # --- firewall ---
     fw = vm_sub.add_parser("firewall", help="Manage VM firewall")
     fw_sub = fw.add_subparsers(dest="fw_resource", title="resources", required=True)
@@ -426,6 +435,23 @@ def _vm_agent_interfaces(args: argparse.Namespace, client: ProxmoxClient) -> dic
                 iface["_node"] = node
                 iface["_vmid"] = args.vmid
     return result
+
+
+# ---------------------------------------------------------------------------
+# VM cloud-init handlers
+# ---------------------------------------------------------------------------
+
+def _vm_cloudinit_generate(args: argparse.Namespace, client: ProxmoxClient) -> dict:
+    """Regenerate the cloud-init ISO from the VM's current cloud-init config.
+
+    After setting citype, ciuser, sshkeys, etc. on a VM, call this to
+    rebuild the cloud-init drive so changes take effect on next boot.
+    """
+    node = _resolve_node(client, args.node, args.vmid)
+    if not node:
+        return {"error": f"VM {args.vmid} not found"}
+    result = client.post(f"/nodes/{node}/qemu/{args.vmid}/cloudinit")
+    return result if isinstance(result, dict) else {"data": result}
 
 
 # ---------------------------------------------------------------------------

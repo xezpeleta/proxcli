@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **vm create cloud-init support**: ``--citype``, ``--ciuser``,
   ``--cipassword``, ``--sshkeys`` (file path or inline),
   ``--nameserver``, ``--searchdomain``, ``--cicustom``.
+- **vm cloudinit generate**: ``proxmox vm cloudinit generate <vmid>``
+  regenerates the cloud-init ISO from the VM's current config so
+  cloud-init changes take effect on next boot.
 
 ## [0.8.2] - 2026-06-20
 
