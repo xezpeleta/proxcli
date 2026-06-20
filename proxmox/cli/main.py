@@ -177,6 +177,20 @@ def _build_client(overrides: dict[str, Any], args: argparse.Namespace) -> Proxmo
     return client
 
 
+def _print_command_help(args: argparse.Namespace) -> None:
+    """When a subcommand has no explicit handler set, print the parent parser's help."""
+    # Try to reconstruct the appropriate parser and show its help
+    cmd_parts = ["proxmox", args.resource]
+    if hasattr(args, "fw_resource"):
+        cmd_parts.append("firewall")
+        cmd_parts.append(args.fw_resource)
+    elif hasattr(args, "action"):
+        cmd_parts.append(args.action)
+    log_error(
+        f"Missing required argument. Run '{' '.join(cmd_parts)} --help' for usage."
+    )
+
+
 def main(argv: list[str] | None = None) -> None:
     """Main entry point."""
     parser = build_root_parser()
@@ -207,8 +221,8 @@ def main(argv: list[str] | None = None) -> None:
                 output = format_output(result, args.output)
                 print(output)
         else:
-            # Subcommand registered but no func set (cli module not implemented yet)
-            log_error(f"Command 'proxmox {args.resource}' is not yet implemented.")
+            # No handler was set — show relevant help
+            _print_command_help(args)
 
     except ConfigError as exc:
         log_error(str(exc))

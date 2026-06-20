@@ -76,8 +76,8 @@ def register_vm_parser(subparsers: argparse._SubParsersAction) -> None:
     vm_delete.set_defaults(func=_vm_delete)
 
     # --- firewall ---
-    fw_parser = vm_sub.add_parser("firewall", help="Manage VM firewall")
-    fw_sub = fw_parser.add_subparsers(dest="fw_action", title="firewall actions", required=True)
+    fw = vm_sub.add_parser("firewall", help="Manage VM firewall")
+    fw_sub = fw.add_subparsers(dest="fw_resource", title="resources", required=True)
 
     fw_opts = fw_sub.add_parser("options", help="Show VM firewall options")
     fw_opts.add_argument("vmid", type=vmid_type, help="VM ID")
@@ -103,40 +103,45 @@ def register_vm_parser(subparsers: argparse._SubParsersAction) -> None:
                            help="Default output policy")
     fw_policy.set_defaults(func=_vm_fw_policy)
 
-    fw_rules = fw_sub.add_parser("rules", help="List VM firewall rules")
-    fw_rules.add_argument("vmid", type=vmid_type, help="VM ID")
-    fw_rules.add_argument("--node", help="Node name (auto-detected if omitted)")
-    fw_rules.set_defaults(func=_vm_fw_rules)
+    # firewall rules
+    rules = fw_sub.add_parser("rules", help="Manage VM firewall rules")
+    rules_sub = rules.add_subparsers(dest="fw_action", title="rule actions", required=False)
 
-    fw_rule_add = fw_sub.add_parser("add-rule", help="Add a VM firewall rule")
-    fw_rule_add.add_argument("vmid", type=vmid_type, help="VM ID")
-    fw_rule_add.add_argument("--node", help="Node name (auto-detected if omitted)")
-    add_firewall_rule_args(fw_rule_add)
-    fw_rule_add.set_defaults(func=_vm_fw_rule_add)
+    rules_list = rules_sub.add_parser("list", help="List rules")
+    rules_list.add_argument("vmid", type=vmid_type, help="VM ID")
+    rules_list.add_argument("--node", help="Node name (auto-detected if omitted)")
+    rules_list.set_defaults(func=_vm_fw_rules)
 
-    fw_rule_show = fw_sub.add_parser("show-rule", help="Show a VM firewall rule")
-    fw_rule_show.add_argument("vmid", type=vmid_type, help="VM ID")
-    fw_rule_show.add_argument("--node", help="Node name (auto-detected if omitted)")
-    fw_rule_show.add_argument("pos", type=int, help="Rule position")
-    fw_rule_show.set_defaults(func=_vm_fw_rule_show)
+    rules_add = rules_sub.add_parser("add", help="Add a rule")
+    rules_add.add_argument("vmid", type=vmid_type, help="VM ID")
+    rules_add.add_argument("--node", help="Node name (auto-detected if omitted)")
+    add_firewall_rule_args(rules_add)
+    rules_add.set_defaults(func=_vm_fw_rule_add)
 
-    fw_rule_upd = fw_sub.add_parser("update-rule", help="Update a VM firewall rule")
-    fw_rule_upd.add_argument("vmid", type=vmid_type, help="VM ID")
-    fw_rule_upd.add_argument("--node", help="Node name (auto-detected if omitted)")
-    fw_rule_upd.add_argument("pos", type=int, help="Rule position")
-    add_firewall_rule_args(fw_rule_upd)
-    for action in fw_rule_upd._actions:
+    rules_show = rules_sub.add_parser("show", help="Show a rule by position")
+    rules_show.add_argument("vmid", type=vmid_type, help="VM ID")
+    rules_show.add_argument("--node", help="Node name (auto-detected if omitted)")
+    rules_show.add_argument("pos", type=int, help="Rule position")
+    rules_show.set_defaults(func=_vm_fw_rule_show)
+
+    rules_upd = rules_sub.add_parser("update", help="Update a rule by position")
+    rules_upd.add_argument("vmid", type=vmid_type, help="VM ID")
+    rules_upd.add_argument("--node", help="Node name (auto-detected if omitted)")
+    rules_upd.add_argument("pos", type=int, help="Rule position")
+    add_firewall_rule_args(rules_upd)
+    for action in rules_upd._actions:
         if action.dest == "action":
             action.required = False
             action.default = None
-    fw_rule_upd.set_defaults(func=_vm_fw_rule_upd)
+    rules_upd.set_defaults(func=_vm_fw_rule_upd)
 
-    fw_rule_del = fw_sub.add_parser("delete-rule", help="Delete a VM firewall rule")
-    fw_rule_del.add_argument("vmid", type=vmid_type, help="VM ID")
-    fw_rule_del.add_argument("--node", help="Node name (auto-detected if omitted)")
-    fw_rule_del.add_argument("pos", type=int, help="Rule position")
-    fw_rule_del.set_defaults(func=_vm_fw_rule_del)
+    rules_del = rules_sub.add_parser("delete", help="Delete a rule by position")
+    rules_del.add_argument("vmid", type=vmid_type, help="VM ID")
+    rules_del.add_argument("--node", help="Node name (auto-detected if omitted)")
+    rules_del.add_argument("pos", type=int, help="Rule position")
+    rules_del.set_defaults(func=_vm_fw_rule_del)
 
+    # firewall refs
     fw_refs = fw_sub.add_parser("refs", help="List VM firewall references")
     fw_refs.add_argument("vmid", type=vmid_type, help="VM ID")
     fw_refs.add_argument("--node", help="Node name (auto-detected if omitted)")

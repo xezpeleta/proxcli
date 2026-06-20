@@ -18,8 +18,8 @@ def register_cluster_parser(subparsers: argparse._SubParsersAction) -> None:
     cl_status.set_defaults(func=_cl_status)
 
     # --- firewall ---
-    fw_parser = cl_sub.add_parser("firewall", help="Manage cluster firewall")
-    fw_sub = fw_parser.add_subparsers(dest="fw_action", title="firewall actions", required=True)
+    fw = cl_sub.add_parser("firewall", help="Manage cluster firewall")
+    fw_sub = fw.add_subparsers(dest="fw_resource", title="resources", required=True)
 
     # firewall options
     fw_opts = fw_sub.add_parser("options", help="Show cluster firewall options")
@@ -39,73 +39,84 @@ def register_cluster_parser(subparsers: argparse._SubParsersAction) -> None:
     fw_policy.set_defaults(func=_cl_fw_policy)
 
     # firewall rules
-    fw_rules = fw_sub.add_parser("rules", help="List cluster firewall rules")
-    fw_rules.set_defaults(func=_cl_fw_rules)
+    rules = fw_sub.add_parser("rules", help="Manage cluster firewall rules")
+    rules.set_defaults(func=_cl_fw_rules)
+    rules_sub = rules.add_subparsers(dest="fw_action", title="rule actions", required=False)
 
-    fw_rule_add = fw_sub.add_parser("add-rule", help="Add a cluster firewall rule")
-    add_firewall_rule_args(fw_rule_add)
-    fw_rule_add.set_defaults(func=_cl_fw_rule_add)
+    rules_list = rules_sub.add_parser("list", help="List rules")
+    rules_list.set_defaults(func=_cl_fw_rules)
 
-    fw_rule_show = fw_sub.add_parser("show-rule", help="Show a cluster firewall rule")
-    fw_rule_show.add_argument("pos", type=int, help="Rule position")
-    fw_rule_show.set_defaults(func=_cl_fw_rule_show)
+    rules_add = rules_sub.add_parser("add", help="Add a rule")
+    add_firewall_rule_args(rules_add)
+    rules_add.set_defaults(func=_cl_fw_rule_add)
 
-    fw_rule_upd = fw_sub.add_parser("update-rule", help="Update a cluster firewall rule")
-    fw_rule_upd.add_argument("pos", type=int, help="Rule position")
-    add_firewall_rule_args(fw_rule_upd)
-    # Make action optional for updates
-    for action in fw_rule_upd._actions:
+    rules_show = rules_sub.add_parser("show", help="Show a rule by position")
+    rules_show.add_argument("pos", type=int, help="Rule position")
+    rules_show.set_defaults(func=_cl_fw_rule_show)
+
+    rules_upd = rules_sub.add_parser("update", help="Update a rule by position")
+    rules_upd.add_argument("pos", type=int, help="Rule position")
+    add_firewall_rule_args(rules_upd)
+    for action in rules_upd._actions:
         if action.dest == "action":
             action.required = False
             action.default = None
-    fw_rule_upd.set_defaults(func=_cl_fw_rule_upd)
+    rules_upd.set_defaults(func=_cl_fw_rule_upd)
 
-    fw_rule_del = fw_sub.add_parser("delete-rule", help="Delete a cluster firewall rule")
-    fw_rule_del.add_argument("pos", type=int, help="Rule position")
-    fw_rule_del.set_defaults(func=_cl_fw_rule_del)
+    rules_del = rules_sub.add_parser("delete", help="Delete a rule by position")
+    rules_del.add_argument("pos", type=int, help="Rule position")
+    rules_del.set_defaults(func=_cl_fw_rule_del)
 
     # firewall aliases
-    fw_aliases = fw_sub.add_parser("aliases", help="List cluster firewall aliases")
-    fw_aliases.set_defaults(func=_cl_fw_aliases)
+    aliases = fw_sub.add_parser("aliases", help="Manage firewall aliases")
+    aliases.set_defaults(func=_cl_fw_aliases)
+    aliases_sub = aliases.add_subparsers(dest="fw_action", title="alias actions", required=False)
 
-    fw_alias_add = fw_sub.add_parser("add-alias", help="Add a cluster firewall alias")
-    fw_alias_add.add_argument("name", help="Alias name")
-    fw_alias_add.add_argument("--cidr", required=True, help="CIDR notation (e.g. 10.0.0.0/8)")
-    fw_alias_add.add_argument("--comment", default=None, help="Comment / description")
-    fw_alias_add.set_defaults(func=_cl_fw_alias_add)
+    aliases_list = aliases_sub.add_parser("list", help="List aliases")
+    aliases_list.set_defaults(func=_cl_fw_aliases)
 
-    fw_alias_del = fw_sub.add_parser("delete-alias", help="Delete a cluster firewall alias")
-    fw_alias_del.add_argument("name", help="Alias name")
-    fw_alias_del.set_defaults(func=_cl_fw_alias_del)
+    aliases_add = aliases_sub.add_parser("add", help="Add an alias")
+    aliases_add.add_argument("name", help="Alias name")
+    aliases_add.add_argument("--cidr", required=True, help="CIDR notation (e.g. 10.0.0.0/8)")
+    aliases_add.add_argument("--comment", default=None, help="Comment / description")
+    aliases_add.set_defaults(func=_cl_fw_alias_add)
 
-    # firewall ipset
-    fw_ipsets = fw_sub.add_parser("ipsets", help="List cluster firewall ipsets")
-    fw_ipsets.set_defaults(func=_cl_fw_ipsets)
+    aliases_del = aliases_sub.add_parser("delete", help="Delete an alias")
+    aliases_del.add_argument("name", help="Alias name")
+    aliases_del.set_defaults(func=_cl_fw_alias_del)
 
-    fw_ipset_add = fw_sub.add_parser("add-ipset", help="Add a cluster firewall ipset")
-    fw_ipset_add.add_argument("name", help="IPset name")
-    fw_ipset_add.add_argument("--comment", default=None, help="Comment / description")
-    fw_ipset_add.set_defaults(func=_cl_fw_ipset_add)
+    # firewall ipsets
+    ipsets = fw_sub.add_parser("ipsets", help="Manage firewall ipsets")
+    ipsets.set_defaults(func=_cl_fw_ipsets)
+    ipsets_sub = ipsets.add_subparsers(dest="fw_action", title="ipset actions", required=False)
 
-    fw_ipset_show = fw_sub.add_parser("show-ipset", help="Show ipset contents")
-    fw_ipset_show.add_argument("name", help="IPset name")
-    fw_ipset_show.set_defaults(func=_cl_fw_ipset_show)
+    ipsets_list = ipsets_sub.add_parser("list", help="List ipsets")
+    ipsets_list.set_defaults(func=_cl_fw_ipsets)
 
-    fw_ipset_del = fw_sub.add_parser("delete-ipset", help="Delete a cluster firewall ipset")
-    fw_ipset_del.add_argument("name", help="IPset name")
-    fw_ipset_del.set_defaults(func=_cl_fw_ipset_del)
+    ipsets_add = ipsets_sub.add_parser("add", help="Add an ipset")
+    ipsets_add.add_argument("name", help="IPset name")
+    ipsets_add.add_argument("--comment", default=None, help="Comment / description")
+    ipsets_add.set_defaults(func=_cl_fw_ipset_add)
 
-    fw_ipset_add_cidr = fw_sub.add_parser("add-ipset-cidr", help="Add a CIDR to an ipset")
-    fw_ipset_add_cidr.add_argument("name", help="IPset name")
-    fw_ipset_add_cidr.add_argument("--cidr", required=True, help="CIDR to add")
-    fw_ipset_add_cidr.add_argument("--comment", default=None, help="Comment")
-    fw_ipset_add_cidr.add_argument("--nomatch", action="store_true", help="Exclude match")
-    fw_ipset_add_cidr.set_defaults(func=_cl_fw_ipset_add_cidr)
+    ipsets_show = ipsets_sub.add_parser("show", help="Show ipset contents")
+    ipsets_show.add_argument("name", help="IPset name")
+    ipsets_show.set_defaults(func=_cl_fw_ipset_show)
 
-    fw_ipset_del_cidr = fw_sub.add_parser("delete-ipset-cidr", help="Remove a CIDR from an ipset")
-    fw_ipset_del_cidr.add_argument("name", help="IPset name")
-    fw_ipset_del_cidr.add_argument("--cidr", required=True, help="CIDR to remove")
-    fw_ipset_del_cidr.set_defaults(func=_cl_fw_ipset_del_cidr)
+    ipsets_del = ipsets_sub.add_parser("delete", help="Delete an ipset")
+    ipsets_del.add_argument("name", help="IPset name")
+    ipsets_del.set_defaults(func=_cl_fw_ipset_del)
+
+    ipsets_add_cidr = ipsets_sub.add_parser("add-cidr", help="Add a CIDR to an ipset")
+    ipsets_add_cidr.add_argument("name", help="IPset name")
+    ipsets_add_cidr.add_argument("--cidr", required=True, help="CIDR to add")
+    ipsets_add_cidr.add_argument("--comment", default=None, help="Comment")
+    ipsets_add_cidr.add_argument("--nomatch", action="store_true", help="Exclude match")
+    ipsets_add_cidr.set_defaults(func=_cl_fw_ipset_add_cidr)
+
+    ipsets_del_cidr = ipsets_sub.add_parser("delete-cidr", help="Remove a CIDR from an ipset")
+    ipsets_del_cidr.add_argument("name", help="IPset name")
+    ipsets_del_cidr.add_argument("--cidr", required=True, help="CIDR to remove")
+    ipsets_del_cidr.set_defaults(func=_cl_fw_ipset_del_cidr)
 
     # firewall refs
     fw_refs = fw_sub.add_parser("refs", help="List firewall references")
@@ -140,10 +151,6 @@ def _cl_fw_policy(args: argparse.Namespace, client: ProxmoxClient) -> dict:
     data: dict = {}
     if args.in_policy is not None:
         data["policy_in"] = args.in_policy
-    elif args.out_policy is not None:
-        data["policy_out"] = args.out_policy
-    if args.in_policy is not None:
-        data["policy_in"] = args.in_policy
     if args.out_policy is not None:
         data["policy_out"] = args.out_policy
     if not data:
@@ -166,11 +173,7 @@ def _cl_fw_rule_show(args: argparse.Namespace, client: ProxmoxClient) -> dict:
 
 
 def _cl_fw_rule_upd(args: argparse.Namespace, client: ProxmoxClient) -> dict:
-    data = build_rule_data(args)
-    # Remove None values so only provided fields are updated
-    data = {k: v for k, v in data.items() if v is not None and v != 0}
-    if "enable" in data or "action" not in args or args.action is not None:
-        data["enable"] = args.enable
+    data = {k: v for k, v in build_rule_data(args).items() if v is not None and v != 0}
     return client.put(f"/cluster/firewall/rules/{args.pos}", data=data)
 
 
