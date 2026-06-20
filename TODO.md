@@ -24,9 +24,6 @@ Completed items are marked with a check. Implementation notes are preserved for 
 
 ## v1.1 — Polish & Usability
 
-- [ ] **Startup time optimization**
-  - Current `proxmox --help` takes ~350ms. Lazy-load subcommand modules so only the requested resource's code is imported. Move `import rich`, `import yaml` inside formatter functions. Target: <200ms.
-
 - [ ] **`--output table` column selection**
   - Allow `proxmox vm list --output table --columns vmid,name,status,mem` to pick which columns appear in the table.
 
