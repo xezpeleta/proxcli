@@ -124,6 +124,15 @@ def register_vm_parser(subparsers: argparse._SubParsersAction) -> None:
                              help="Force removal (1=yes, 0=no, default: 0)")
     snap_delete.set_defaults(func=_vm_snapshot_delete)
 
+    # --- agent ---
+    agent = vm_sub.add_parser("agent", help="Query QEMU guest agent")
+    agent_sub = agent.add_subparsers(dest="agent_action", title="agent actions", required=True)
+
+    agent_ifaces = agent_sub.add_parser("interfaces", help="List network interfaces via guest agent")
+    agent_ifaces.add_argument("vmid", type=vmid_type, help="VM ID")
+    agent_ifaces.add_argument("--node", help="Node name (auto-detected if omitted)")
+    agent_ifaces.set_defaults(func=_vm_agent_interfaces)
+
     # --- firewall ---
     fw = vm_sub.add_parser("firewall", help="Manage VM firewall")
     fw_sub = fw.add_subparsers(dest="fw_resource", title="resources", required=True)
@@ -363,6 +372,28 @@ def _vm_delete(args: argparse.Namespace, client: ProxmoxClient) -> dict:
         params["purge"] = 1
     result = client.delete(f"/nodes/{node}/qemu/{args.vmid}", params=params or None)
     return result if isinstance(result, dict) else {"data": result}
+
+
+# ---------------------------------------------------------------------------
+# VM guest agent handlers
+# ---------------------------------------------------------------------------
+
+def _vm_agent_interfaces(args: argparse.Namespace, client: ProxmoxClient) -> dict | list:
+    """Retrieve network interfaces via QEMU guest agent.
+
+    Requires qemu-guest-agent installed in the VM and agent enabled in VM options.
+    """
+    node = _resolve_node(client, args.node, args.vmid)
+    if not node:
+        return {"error": f"VM {args.vmid} not found"}
+    result = client.get(f"/nodes/{node}/qemu/{args.vmid}/agent/network-get-interfaces")
+    # The result is a list of interfaces, each with 'name', 'ip-addresses', etc.
+    if isinstance(result, list):
+        for iface in result:
+            if isinstance(iface, dict):
+                iface["_node"] = node
+                iface["_vmid"] = args.vmid
+    return result
 
 
 # ---------------------------------------------------------------------------
