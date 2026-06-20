@@ -92,6 +92,41 @@ def register_node_parser(subparsers: argparse._SubParsersAction) -> None:
                          help="Filter by reference type")
     fw_refs.set_defaults(func=_node_fw_refs)
 
+    # --- node subscription ---
+    subscr = node_sub.add_parser("subscription", help="Show node subscription status")
+    subscr.add_argument("node_name", help="Node name")
+    subscr.set_defaults(func=_node_subscription)
+
+    # --- node dns ---
+    dns = node_sub.add_parser("dns", help="Show node DNS configuration")
+    dns.add_argument("node_name", help="Node name")
+    dns.set_defaults(func=_node_dns)
+
+    # --- node time ---
+    time = node_sub.add_parser("time", help="Show node time and timezone")
+    time.add_argument("node_name", help="Node name")
+    time.set_defaults(func=_node_time)
+
+    # --- node services ---
+    svc = node_sub.add_parser("services", help="List node systemd services")
+    svc.add_argument("node_name", help="Node name")
+    svc.set_defaults(func=_node_services)
+
+    # --- node pci ---
+    pci = node_sub.add_parser("pci", help="List node PCI devices")
+    pci.add_argument("node_name", help="Node name")
+    pci.set_defaults(func=_node_pci)
+
+    # --- node netstat ---
+    netstat = node_sub.add_parser("netstat", help="Show node network statistics")
+    netstat.add_argument("node_name", help="Node name")
+    netstat.set_defaults(func=_node_netstat)
+
+    # --- node config ---
+    cfg = node_sub.add_parser("config", help="Show node configuration")
+    cfg.add_argument("node_name", help="Node name")
+    cfg.set_defaults(func=_node_config)
+
 
 # ---------------------------------------------------------------------------
 # Node handlers
@@ -175,3 +210,46 @@ def _node_fw_rule_del(args: argparse.Namespace, client: ProxmoxClient) -> dict:
 def _node_fw_refs(args: argparse.Namespace, client: ProxmoxClient) -> dict | list:
     params = {"type": args.type} if args.type else None
     return client.get(f"/nodes/{args.node_name}/firewall/refs", params=params)
+
+
+# ---------------------------------------------------------------------------
+# Node system handlers
+# ---------------------------------------------------------------------------
+
+def _node_subscription(args: argparse.Namespace, client: ProxmoxClient) -> dict:
+    return client.get(f"/nodes/{args.node_name}/subscription")
+
+
+def _node_dns(args: argparse.Namespace, client: ProxmoxClient) -> dict:
+    return client.get(f"/nodes/{args.node_name}/dns")
+
+
+def _node_time(args: argparse.Namespace, client: ProxmoxClient) -> dict:
+    return client.get(f"/nodes/{args.node_name}/time")
+
+
+def _node_services(args: argparse.Namespace, client: ProxmoxClient) -> list:
+    return client.get(f"/nodes/{args.node_name}/services")
+
+
+def _node_pci(args: argparse.Namespace, client: ProxmoxClient) -> list:
+    data = client.get(f"/nodes/{args.node_name}/hardware/pci")
+    # Simplify for display
+    return [
+        {
+            "id": d.get("id", ""),
+            "vendor": d.get("vendor_name", ""),
+            "device": d.get("device_name", ""),
+            "class": d.get("class", ""),
+            "iommugroup": d.get("iommugroup", -1) if d.get("iommugroup", -1) >= 0 else "",
+        }
+        for d in data
+    ]
+
+
+def _node_netstat(args: argparse.Namespace, client: ProxmoxClient) -> list:
+    return client.get(f"/nodes/{args.node_name}/netstat")
+
+
+def _node_config(args: argparse.Namespace, client: ProxmoxClient) -> dict:
+    return client.get(f"/nodes/{args.node_name}/config")

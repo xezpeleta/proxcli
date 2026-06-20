@@ -41,6 +41,12 @@ def register_storage_parser(subparsers: argparse._SubParsersAction) -> None:
     )
     st_upload.set_defaults(func=_st_upload)
 
+    # --- storage status ---
+    st_status = st_sub.add_parser("status", help="Show storage usage status")
+    st_status.add_argument("storage_name", help="Storage name")
+    st_status.add_argument("--node", help="Node name (auto-detected if omitted)")
+    st_status.set_defaults(func=_st_status)
+
 
 def _st_list(args: argparse.Namespace, client: ProxmoxClient) -> dict | list:
     if args.node:
@@ -83,3 +89,13 @@ def _st_upload(args: argparse.Namespace, client: ProxmoxClient) -> dict:
         file_path=args.file,
         content_type=args.content_type,
     )
+
+
+def _st_status(args: argparse.Namespace, client: ProxmoxClient) -> dict:
+    node = args.node or _resolve_storage_node(client, args.storage_name)
+    if not node:
+        return {
+            "error": f"Could not determine node for storage '{args.storage_name}'. "
+                     "Use --node <name> to specify the node."
+        }
+    return client.get(f"/nodes/{node}/storage/{args.storage_name}/status")

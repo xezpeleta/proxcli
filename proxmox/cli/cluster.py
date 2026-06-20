@@ -17,6 +17,15 @@ def register_cluster_parser(subparsers: argparse._SubParsersAction) -> None:
     cl_status = cl_sub.add_parser("status", help="Show cluster status")
     cl_status.set_defaults(func=_cl_status)
 
+    # --- cluster log ---
+    cl_log = cl_sub.add_parser("log", help="Show cluster log")
+    cl_log.add_argument("--limit", type=int, default=50, help="Number of entries (default: 50)")
+    cl_log.set_defaults(func=_cl_log)
+
+    # --- cluster options ---
+    cl_opts = cl_sub.add_parser("options", help="Show cluster-wide options")
+    cl_opts.set_defaults(func=_cl_options)
+
     # --- firewall ---
     fw = cl_sub.add_parser("firewall", help="Manage cluster firewall")
     fw_sub = fw.add_subparsers(dest="fw_resource", title="resources", required=True)
@@ -131,6 +140,14 @@ def register_cluster_parser(subparsers: argparse._SubParsersAction) -> None:
 
 def _cl_status(_args: argparse.Namespace, client: ProxmoxClient) -> dict | list:
     return client.get("/cluster/status")
+
+
+def _cl_log(args: argparse.Namespace, client: ProxmoxClient) -> list:
+    return client.get("/cluster/log", params={"max": args.limit})
+
+
+def _cl_options(_args: argparse.Namespace, client: ProxmoxClient) -> dict:
+    return client.get("/cluster/options")
 
 
 # --- Firewall options ---
