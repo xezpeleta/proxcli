@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.9.0] - 2026-06-20
+## [0.9.1] - 2026-06-20
 
 ### Added
 - **user, role, and ACL management**: ``proxmox user`` (list, show, create,
@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ``proxmox acl`` (list, show, add, delete).  Wraps ``/access/users``,
   ``/access/roles``, and ``/access/acl`` endpoints.  ACL write operations
   require ``Permissions.Modify`` (Administrator role).
+
+## [0.9.0] - 2026-06-20
+
+### Added
 - **vm create cloud-init support**: ``--citype``, ``--ciuser``,
   ``--cipassword``, ``--sshkeys`` (file path or inline),
   ``--nameserver``, ``--searchdomain``, ``--cicustom``.
@@ -162,6 +166,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CSRF ticket auto-refresh on 401.
 - AI-agent-friendly: default JSON output, strict exit codes, `--dry-run` mode.
 
+[0.9.1]: https://github.com/xezpeleta/proxcli/releases/tag/v0.9.1
 [0.9.0]: https://github.com/xezpeleta/proxcli/releases/tag/v0.9.0
 [0.8.2]: https://github.com/xezpeleta/proxcli/releases/tag/v0.8.2
 [0.8.1]: https://github.com/xezpeleta/proxcli/releases/tag/v0.8.1
