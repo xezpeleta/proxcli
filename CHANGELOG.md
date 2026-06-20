@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Node system info**: ``proxmox node subscription``, ``dns``, ``time``,
+  ``services``, ``pci``, ``netstat``, ``config`` — read-only node inspection
+  (subscription status, DNS config, timezone, systemd services, PCI devices,
+  network statistics, node configuration).
+- **Cluster log & options**: ``proxmox cluster log [--limit N]`` (cluster-wide
+  log entries) and ``proxmox cluster options`` (migration network, keyboard,
+  MAC prefix, allowed tags).
+- **Storage status**: ``proxmox storage status <storage> [--node]`` shows
+  usage stats per storage backend (total, used, available, content types).
 - **Ceph & disk management**: ``proxmox ceph status`` (cluster health:
   OSDs, PGs, usage, monitors, warnings), ``proxmox ceph osd [--node]``
   (OSD list mapped to physical disks with model/size/wearout),

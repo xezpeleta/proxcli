@@ -300,6 +300,15 @@ proxmox node firewall rules show <node> <pos>
 proxmox node firewall rules update <node> <pos> --action DROP
 proxmox node firewall rules delete <node> <pos>
 proxmox node firewall refs <node> [--type alias|ipset|group]
+
+# Node system info
+proxmox node subscription <node>    # subscription status
+proxmox node dns <node>             # DNS configuration
+proxmox node time <node>            # timezone and local time
+proxmox node services <node>        # systemd service status
+proxmox node pci <node>             # PCI device inventory
+proxmox node netstat <node>         # network statistics
+proxmox node config <node>          # node configuration
 ```
 
 ### Storage
@@ -308,6 +317,7 @@ proxmox node firewall refs <node> [--type alias|ipset|group]
 proxmox storage list [--node <node>]
 proxmox storage show <storage>
 proxmox storage content <storage> [--node <node>]
+proxmox storage status <storage> [--node <node>]   # usage stats
 proxmox storage upload --node <node> --storage <storage> --file <path> [--content-type iso|vztmpl|import]
 ```
 
@@ -341,6 +351,8 @@ proxmox pool delete <poolid>
 
 ```bash
 proxmox cluster status
+proxmox cluster log [--limit N]              # cluster-wide log
+proxmox cluster options                      # migration, keyboard, mac_prefix, tags
 
 # Ceph management
 proxmox ceph status                          # cluster health: OSDs, PGs, usage, monitors

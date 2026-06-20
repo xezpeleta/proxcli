@@ -23,6 +23,10 @@ Completed items are marked with a check. Implementation notes are preserved for 
 - [x] **Backup (vzdump) management** — `proxmox backup` (list/show/create/delete/tasks/defaults). Wraps `/nodes/{node}/vzdump` and storage content endpoints. Supports snapshot/suspend/stop modes, compression, PBS.
 - [x] **Ceph & disk management** — `proxmox ceph` (status, osd, log, disks). Cluster health, OSD-to-disk mapping, wearout tracking, Ceph logs.
 - [x] **Config loader made read-only** — `auth login`/`auth clear` removed. `PROXMOX_CONFIG_DIR` env var for custom config path.
+- [x] **Node system info** — `proxmox node subscription/dns/time/services/pci/netstat/config`. Read-only node inspection.
+- [x] **Cluster log & options** — `proxmox cluster log [--limit N]` and `proxmox cluster options`.
+- [x] **Storage status** — `proxmox storage status <storage> [--node]` for usage stats.
+- [x] **API coverage doc** — `docs/api-coverage.md` tracking all implemented and remaining endpoints.
 
 ## v1.1 — Polish & Usability
 
