@@ -11,15 +11,16 @@ from proxmox.config.config import ConfigLoader
 
 # Recommended roles for proxcli (see docs/api-permissions.md)
 PROXCLI_ROLES: dict[str, str] = {
-    "proxcli-sys": "Sys.Audit,Sys.Modify",
+    "proxcli-sys": "Sys.Audit,Sys.Modify,Pool.Allocate,Pool.Audit",
     "proxcli-storage": "Datastore.Allocate,Datastore.AllocateSpace,"
                        "Datastore.AllocateTemplate,Datastore.Audit",
     "proxcli-vm": "VM.Allocate,VM.Audit,VM.Backup,VM.Clone,"
                   "VM.Config.CDROM,VM.Config.Cloudinit,VM.Config.CPU,"
                   "VM.Config.Disk,VM.Config.HWType,VM.Config.Memory,"
                   "VM.Config.Network,VM.Config.Options,VM.Console,"
+                  "VM.GuestAgent.Audit,VM.GuestAgent.FileRead,"
                   "VM.Migrate,VM.PowerMgmt,VM.Snapshot,"
-                  "VM.Snapshot.Rollback,Pool.Allocate,Pool.Audit",
+                  "VM.Snapshot.Rollback",
     "proxcli-node": "VM.GuestAgent.Audit,VM.GuestAgent.FileRead",
 }
 
@@ -191,16 +192,14 @@ def _auth_setup(args: argparse.Namespace, client: ProxmoxClient) -> dict:
         client.request("POST", "/access/roles", content=content)
         created_roles.append(role_name)
 
-    # 2. ACLs — must be created in the Proxmox UI (REST API does not
-    #    accept 'tokenid' form param for PUT /access/acl)
+    # 2. Create ACLs for the token using 'tokens' parameter (plural —
+    #    the API docs say 'tokenid' but the actual HTTP param is 'tokens')
     loader = ConfigLoader()
     creds = loader.load()
-    token_id = creds.api_token_id or "proxcli"
-    token_ug = f"{creds.username}!{token_id}" if creds.username and "@" in creds.username else token_id
+    token_ug = f"{creds.username}!{creds.api_token_id}" if creds.api_token_id else creds.username
 
-    # Check which ACLs already exist for the token
-    existing_acls = client.get("/access/acl")
     for path, role in PROXCLI_ACLS:
+        existing_acls = client.get("/access/acl")
         already = any(
             a.get("path") == path
             and a.get("roleid") == role
@@ -210,30 +209,10 @@ def _auth_setup(args: argparse.Namespace, client: ProxmoxClient) -> dict:
         )
         if already:
             skipped_acls.append(f"{path} → {role} ({token_ug})")
-
-    # Print manual UI instructions for missing ACLs
-    from rich.console import Console
-    console = Console(highlight=False, force_terminal=True, width=120)
-    missing = [(p, r) for p, r in PROXCLI_ACLS if f"{p} → {r} ({token_ug})" not in skipped_acls]
-    if missing:
-        console.print()
-        console.print("[bold yellow]ACLs must be created manually in the Proxmox UI:[/]")
-        console.print()
-        console.print("  1. Go to Datacenter → Permissions → Add → [bold]API Token Permission[/]")
-        console.print(f"  2. For each entry below, set API Token to [bold]{token_ug}[/]:")
-        console.print()
-        for path, role in missing:
-            console.print(f"     Path: [bold]{path:<10s}[/]  Role: [bold]{role}[/]")
-        console.print()
-        console.print("[dim](The REST API does not accept 'tokenid' for PUT /access/acl.)[/]")
-        console.print()
-
-    return {
-        "created_roles": created_roles,
-        "skipped_roles": skipped_roles,
-        "created_acls": created_acls,
-        "skipped_acls": skipped_acls,
-    }
+            continue
+        content = _safe_encode({"path": path, "roles": role, "tokens": token_ug})
+        client.request("PUT", "/access/acl", content=content)
+        created_acls.append(f"{path} → {role} ({token_ug})")
 
 
 def _auth_check(args: argparse.Namespace, client: ProxmoxClient) -> None:
