@@ -416,32 +416,38 @@ class ProxmoxClient:
 
         seen: set[str] = set()
 
-        while True:
-            try:
-                data = self.request("GET", path, params=base_params)
-            except ProxmoxAPIError:
+        try:
+            while True:
+                try:
+                    data = self.request("GET", path, params=base_params)
+                except ProxmoxAPIError:
+                    if not follow:
+                        break
+                    time.sleep(1)
+                    continue
+
+                if not isinstance(data, list):
+                    break
+
+                new_entries = []
+                for entry in data:
+                    eid = entry.get("id", "")
+                    ekey = f"{entry.get('time', '')}:{eid}"
+                    if ekey not in seen:
+                        seen.add(ekey)
+                        new_entries.append(entry)
+
+                # Print new entries oldest-first
+                try:
+                    for entry in reversed(new_entries):
+                        line = _log_line(entry)
+                        print(line, flush=True)
+                except BrokenPipeError:
+                    return
+
                 if not follow:
                     break
+
                 time.sleep(1)
-                continue
-
-            if not isinstance(data, list):
-                break
-
-            new_entries = []
-            for entry in data:
-                eid = entry.get("id", "")
-                ekey = f"{entry.get('time', '')}:{eid}"
-                if ekey not in seen:
-                    seen.add(ekey)
-                    new_entries.append(entry)
-
-            # Print new entries oldest-first
-            for entry in reversed(new_entries):
-                line = _log_line(entry)
-                print(line, flush=True)
-
-            if not follow:
-                break
-
-            time.sleep(1)
+        except (KeyboardInterrupt, Exception):
+            pass
