@@ -1,7 +1,7 @@
 # API Token Permissions
 
 proxcli uses the Proxmox VE REST API.  This document describes how to create
-a minimal-permission API token for common workflows.
+an API token with the right permissions.
 
 ## Creating an API Token
 
@@ -9,12 +9,89 @@ In the Proxmox VE UI: **Datacenter → Permissions → API Tokens → Add**
 
 1. Select **User**
 2. Enter **Token ID** (e.g. `proxcli`)
-3. Uncheck **Privilege Separation** (for simplicity) or leave it checked
-   if you want to limit the token's permissions
+3. Uncheck **Privilege Separation** (recommended — see note below)
 
 The **Secret** is shown only once — save it immediately.
 
-## Permission Model
+> **Privilege Separation**: when unchecked, the token inherits all of the
+> user's roles.  When checked, you must assign roles directly to the token.
+> Unchecking is simpler but broader.  Check it if you want to lock down
+> the token independently of the user.
+
+## The Recommended Role: `proxcli`
+
+Create **one custom role** and assign it to your user (or API token).
+This role covers all proxcli operations — read-only inspection, VM
+lifecycle, cloud-init, snapshots, backups, firewall, pool management,
+and Ceph/disks.
+
+```
+Role name: proxcli
+
+Privileges:
+  ── system ──
+  Sys.Audit
+
+  ── storage ──
+  Datastore.Allocate
+  Datastore.AllocateSpace
+  Datastore.AllocateTemplate
+  Datastore.Audit
+
+  ── VMs ──
+  VM.Allocate
+  VM.Audit
+  VM.Backup
+  VM.Clone
+  VM.Config.CDROM
+  VM.Config.Cloudinit
+  VM.Config.CPU
+  VM.Config.Disk
+  VM.Config.HWType
+  VM.Config.Memory
+  VM.Config.Network
+  VM.Config.Options
+  VM.Console
+  VM.Migrate
+  VM.Monitor
+  VM.PowerMgmt
+  VM.Snapshot
+  VM.Snapshot.Rollback
+
+  ── guest agent ──
+  VM.GuestAgent.Audit
+  VM.GuestAgent.FileRead
+
+  ── pools ──
+  Pool.Allocate
+  Pool.Audit
+
+  ── firewall (cluster/node/VM) ──
+  Sys.Modify
+```
+
+```bash
+# ACL — assign to all relevant paths.  Inheritance does the rest:
+#   /           → Sys.Audit, Sys.Modify (cluster firewall)
+#   /storage    → Datastore.*
+#   /vms        → VM.*, Pool.*
+#   /nodes      → VM.GuestAgent.*
+
+pvesh set /access/acl          --path /          --roles proxcli --users xezpeleta@pve
+pvesh set /access/acl          --path /storage   --roles proxcli --users xezpeleta@pve
+pvesh set /access/acl          --path /vms       --roles proxcli --users xezpeleta@pve
+pvesh set /access/acl          --path /nodes     --roles proxcli --users xezpeleta@pve
+```
+
+That's it.  One role, four ACL paths, and proxcli can do everything.
+
+> **ACL management** (`proxmox acl`) and **user management**
+> (`proxmox user`) require `Permissions.Modify`, which is only in the
+> built-in **Administrator** role.  These are admin-only operations —
+> add `Permissions.Modify` to `proxcli` if you need them, but it's a
+> powerful privilege.
+
+## Permission Model (Reference)
 
 Proxmox permissions follow the pattern:
 
@@ -28,112 +105,65 @@ Proxmox permissions follow the pattern:
   1. The token's own ACLs
   2. The user's ACLs (if privilege separation is enabled)
 
-## Step-by-Step: Cloud-Init VM Workflow
+## Narrower Scoping (Optional)
+
+If you want to limit what a token can touch, use the bare minimum
+privileges per workflow:
+
+### Cloud-Init VM Workflow
 
 The complete workflow of uploading a cloud image, creating a VM with
-cloud-init, and starting it uses these endpoints:
+cloud-init, and starting it:
 
 | Step | Method | Endpoint | Privilege |
 |------|--------|----------|-----------|
 | 1 | GET | `/cluster/nextid` | `Sys.Audit` |
 | 2 | POST | `/nodes/{node}/storage/{storage}/upload` | `Datastore.AllocateTemplate` |
 | 3 | POST | `/nodes/{node}/qemu` | `VM.Allocate` |
-| 3 | — | (reads imported image from source storage) | `Datastore.Allocate` |
+| 3 | — | (reads imported image) | `Datastore.Allocate` |
 | 3 | — | (allocates disk on target storage) | `Datastore.AllocateSpace` |
 | 3 | — | (attaches scsi0 disk) | `VM.Config.Disk` |
 | 3 | — | (sets net0) | `VM.Config.Network` |
-| 3 | — | (sets cloud-init: citype, ciuser, sshkeys, etc.) | `VM.Config.Cloudinit` |
+| 3 | — | (sets cloud-init: citype, ciuser, …) | `VM.Config.Cloudinit` |
 | 3 | — | (sets bios, machine, boot order) | `VM.Config.Options` |
 | 4 | POST | `/nodes/{node}/qemu/{vmid}/status/start` | `VM.PowerMgmt` |
 | 5 | GET | `/nodes/{node}/qemu/{vmid}/status/current` | `VM.Audit` |
-| 5 | GET | `/cluster/resources` | `Sys.Audit` |
 
-## Minimal Role: PVECloudInitAdmin
+**Minimal role `PVECloudInitAdmin`**: `Sys.Audit`, `Datastore.Allocate`,
+`Datastore.AllocateSpace`, `Datastore.AllocateTemplate`, `VM.Allocate`,
+`VM.Audit`, `VM.Config.Cloudinit`, `VM.Config.Disk`, `VM.Config.Network`,
+`VM.Config.Options`, `VM.PowerMgmt`.
 
-Create a role with only the 11 required privileges:
+### Additional Privileges by Feature
 
-```
-Role name: PVECloudInitAdmin
-
-Privileges:
-  Sys.Audit
-  Datastore.Allocate
-  Datastore.AllocateSpace
-  Datastore.AllocateTemplate
-  VM.Allocate
-  VM.Audit
-  VM.Config.Cloudinit
-  VM.Config.Disk
-  VM.Config.Network
-  VM.Config.Options
-  VM.PowerMgmt
-```
-
-### ACLs (broad — covers all storages and VMs)
-
-```
-Add → Path: /
-Add → Path: /storage
-Add → Path: /vms
-```
-
-Assign the `PVECloudInitAdmin` role to all three paths for your user or
-token.  Since permissions inherit, `/vms` covers all VMs and
-`/storage` covers all storages.
-
-### ACLs (narrow — single storage, single node)
-
-If you know exactly which storages you'll use, lock it down further:
-
-```
-Path: /                          Role: PVECloudInitAdmin (only for Sys.Audit)
-Path: /storage/local            Role: PVECloudInitAdmin (for upload + import)
-Path: /storage/rbd_ssd           Role: PVECloudInitAdmin (for disk allocation)
-Path: /vms                       Role: PVECloudInitAdmin (for VM operations)
-```
-
-Or even narrower per-VM:
-
-```
-Path: /vms/100-199              Role: PVECloudInitAdmin
-```
-
-## Additional Privileges for Other Workflows
-
-| Feature | Extra Privileges |
-|---------|-----------------|
+| Feature | Extra Privileges Needed |
+|---------|------------------------|
 | Snapshots | `VM.Snapshot`, `VM.Snapshot.Rollback` |
 | Clone VM | `VM.Clone` |
 | Change memory/CPU | `VM.Config.Memory`, `VM.Config.CPU` |
 | Attach ISOs | `VM.Config.CDROM` |
 | Migrate VM | `VM.Migrate` |
 | Backup VM | `VM.Backup` |
-| Delete VM | `VM.Allocate` (already included), `Datastore.AllocateSpace` |
+| Delete VM | `VM.Allocate` (already needed), `Datastore.AllocateSpace` |
 | QEMU guest agent | `VM.GuestAgent.Audit`, `VM.GuestAgent.FileRead` |
-| Containers | `VM.Allocate` (LXC creation), `VM.Audit`, `VM.PowerMgmt` |
+| Containers | `VM.Allocate`, `VM.Audit`, `VM.PowerMgmt` |
 | Pools | `Pool.Allocate`, `Pool.Audit` |
-| Cluster firewall | `Sys.Modify`, `Sys.Audit` |
-| Node firewall | `Sys.Modify` |
-| VM firewall | `VM.Allocate` (already included) |
+| Cluster/node/VM firewall | `Sys.Modify`, `Sys.Audit` |
 | ACL management | `Permissions.Modify` (Administrator role) |
+| User/role management | `Permissions.Modify` (Administrator role) |
 
-## Full Admin Role (for comparison)
+### Built-in Roles (for reference)
 
-The built-in **PVEVMAdmin** role includes:
+**PVEVMAdmin**: `VM.Allocate`, `VM.Audit`, `VM.Backup`, `VM.Clone`,
+`VM.Config.CDROM`, `VM.Config.Cloudinit`, `VM.Config.CPU`,
+`VM.Config.Disk`, `VM.Config.HWType`, `VM.Config.Memory`,
+`VM.Config.Network`, `VM.Config.Options`, `VM.Console`, `VM.Migrate`,
+`VM.Monitor`, `VM.PowerMgmt`, `VM.Snapshot`, `VM.Snapshot.Rollback`
 
-```
-VM.Allocate, VM.Audit, VM.Backup, VM.Clone, VM.Config.CDROM,
-VM.Config.Cloudinit, VM.Config.CPU, VM.Config.Disk, VM.Config.HWType,
-VM.Config.Memory, VM.Config.Network, VM.Config.Options, VM.Console,
-VM.Migrate, VM.Monitor, VM.PowerMgmt, VM.Snapshot, VM.Snapshot.Rollback
-```
+**PVEDatastoreAdmin**: `Datastore.Allocate`, `Datastore.AllocateSpace`,
+`Datastore.AllocateTemplate`, `Datastore.Audit`, `Datastore.Copy`
 
-The built-in **PVEDatastoreAdmin** adds:
-
-```
-Datastore.Allocate, Datastore.AllocateSpace, Datastore.AllocateTemplate,
-Datastore.Audit, Datastore.Copy
-```
+**PVEPoolAdmin**: `Pool.Allocate`, `Pool.Audit`
 
 ## Verifying Permissions
 
@@ -149,5 +179,4 @@ Or test a specific action with dry-run:
 proxmox --dry-run vm create --node <node> --memory 512 --cores 1
 ```
 
-The dry-run output shows the exact endpoint and HTTP method — if any
-privilege is missing, Proxmox will return a **403 Forbidden**.
+If any privilege is missing, Proxmox returns a **403 Forbidden**.
