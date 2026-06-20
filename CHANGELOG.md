@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-06-20
+
 ### Added
 - **Node system info**: ``proxmox node subscription``, ``dns``, ``time``,
   ``services``, ``pci``, ``netstat``, ``config`` — read-only node inspection
