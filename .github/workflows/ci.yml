@@ -70,4 +70,4 @@ jobs:
           name: dist
           path: dist/
 
-      - run: uv publish --token "${{ secrets.PYPI_TOKEN }}"
+      - run: uv publish --token "${{ secrets.PYPI_TOKEN }}" --check-url https://pypi.org/simple
