@@ -191,34 +191,42 @@ def _auth_setup(args: argparse.Namespace, client: ProxmoxClient) -> dict:
         client.request("POST", "/access/roles", content=content)
         created_roles.append(role_name)
 
-    # 2. Create ACLs
-    # Proxmox's PUT /access/acl doesn't accept 'tokenid' form param —
-    # you must add token ACLs via the UI or pvesh.  We create user-level
-    # ACLs only if the path doesn't already have a role assigned.
+    # 2. ACLs — must be created in the Proxmox UI (REST API does not
+    #    accept 'tokenid' form param for PUT /access/acl)
     loader = ConfigLoader()
     creds = loader.load()
-    ug = creds.username
+    token_id = creds.api_token_id or "proxcli"
+    token_ug = f"{creds.username}!{token_id}" if creds.username and "@" in creds.username else token_id
 
+    # Check which ACLs already exist for the token
+    existing_acls = client.get("/access/acl")
     for path, role in PROXCLI_ACLS:
-        existing_acls = client.get("/access/acl")
-        has_user_role = any(
-            a.get("path") == path and a.get("type") == "user" and a.get("ugid") == ug
+        already = any(
+            a.get("path") == path
+            and a.get("roleid") == role
+            and a.get("ugid") == token_ug
+            and a.get("type") == "token"
             for a in existing_acls
         )
-        has_role = any(
-            a.get("path") == path and a.get("roleid") == role
-            for a in existing_acls
-        )
-        if has_role:
-            skipped_acls.append(f"{path} → {role} ({ug})")
-            continue
-        if has_user_role:
-            # User already has a role on this path — skip to avoid overwriting
-            skipped_acls.append(f"{path} → {role} ({ug}) [user already has role on this path, skipping]")
-            continue
-        content = _safe_encode({"path": path, "roles": role, "users": ug})
-        client.request("PUT", "/access/acl", content=content)
-        created_acls.append(f"{path} → {role} ({ug})")
+        if already:
+            skipped_acls.append(f"{path} → {role} ({token_ug})")
+
+    # Print manual UI instructions for missing ACLs
+    from rich.console import Console
+    console = Console(highlight=False, force_terminal=True, width=120)
+    missing = [(p, r) for p, r in PROXCLI_ACLS if f"{p} → {r} ({token_ug})" not in skipped_acls]
+    if missing:
+        console.print()
+        console.print("[bold yellow]ACLs must be created manually in the Proxmox UI:[/]")
+        console.print()
+        console.print("  1. Go to Datacenter → Permissions → Add → [bold]API Token Permission[/]")
+        console.print(f"  2. For each entry below, set API Token to [bold]{token_ug}[/]:")
+        console.print()
+        for path, role in missing:
+            console.print(f"     Path: [bold]{path:<10s}[/]  Role: [bold]{role}[/]")
+        console.print()
+        console.print("[dim](The REST API does not accept 'tokenid' for PUT /access/acl.)[/]")
+        console.print()
 
     return {
         "created_roles": created_roles,
