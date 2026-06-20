@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+from urllib.parse import urlencode
 
 from proxmox.client.client import ProxmoxClient
 from proxmox.config.config import ConfigLoader
@@ -16,7 +17,7 @@ PROXCLI_ROLES: dict[str, str] = {
                   "VM.Config.CDROM,VM.Config.Cloudinit,VM.Config.CPU,"
                   "VM.Config.Disk,VM.Config.HWType,VM.Config.Memory,"
                   "VM.Config.Network,VM.Config.Options,VM.Console,"
-                  "VM.Migrate,VM.Monitor,VM.PowerMgmt,VM.Snapshot,"
+                  "VM.Migrate,VM.PowerMgmt,VM.Snapshot,"
                   "VM.Snapshot.Rollback,Pool.Allocate,Pool.Audit",
     "proxcli-node": "VM.GuestAgent.Audit,VM.GuestAgent.FileRead",
 }
@@ -28,6 +29,15 @@ PROXCLI_ACLS: list[tuple[str, str]] = [
     ("/vms", "proxcli-vm"),
     ("/nodes", "proxcli-node"),
 ]
+
+
+def _safe_encode(data: dict[str, str]) -> str:
+    """URL-encode dict as form data, preserving literal commas in values.
+
+    Proxmox expects literal commas in ``privs`` values, but httpx's
+    default form-encoding converts them to ``%2C``.
+    """
+    return urlencode(data, safe=",")
 
 
 def register_auth_parser(subparsers: argparse._SubParsersAction) -> None:
@@ -75,7 +85,8 @@ def _auth_setup(args: argparse.Namespace, client: ProxmoxClient) -> dict:
         if any(r.get("roleid") == role_name for r in existing):
             skipped_roles.append(role_name)
             continue
-        client.post("/access/roles", data={"roleid": role_name, "privs": privs})
+        content = _safe_encode({"roleid": role_name, "privs": privs})
+        client.request("POST", "/access/roles", content=content)
         created_roles.append(role_name)
 
     # 2. Create ACLs
@@ -96,10 +107,8 @@ def _auth_setup(args: argparse.Namespace, client: ProxmoxClient) -> dict:
         if already:
             skipped_acls.append(f"{path} → {role} ({ug})")
             continue
-        client.put(
-            "/access/acl",
-            data={"path": path, "roles": role, "users": ug},
-        )
+        content = _safe_encode({"path": path, "roles": role, "users": ug})
+        client.request("PUT", "/access/acl", content=content)
         created_acls.append(f"{path} → {role} ({ug})")
 
     return {

@@ -53,7 +53,6 @@ Role name: proxcli-vm
   VM.Config.Options
   VM.Console
   VM.Migrate
-  VM.Monitor
   VM.PowerMgmt
   VM.Snapshot
   VM.Snapshot.Rollback
@@ -162,7 +161,7 @@ cloud-init, and starting it:
 `VM.Config.CDROM`, `VM.Config.Cloudinit`, `VM.Config.CPU`,
 `VM.Config.Disk`, `VM.Config.HWType`, `VM.Config.Memory`,
 `VM.Config.Network`, `VM.Config.Options`, `VM.Console`, `VM.Migrate`,
-`VM.Monitor`, `VM.PowerMgmt`, `VM.Snapshot`, `VM.Snapshot.Rollback`
+`VM.PowerMgmt`, `VM.Snapshot`, `VM.Snapshot.Rollback`
 
 **PVEDatastoreAdmin**: `Datastore.Allocate`, `Datastore.AllocateSpace`,
 `Datastore.AllocateTemplate`, `Datastore.Audit`, `Datastore.Copy`
