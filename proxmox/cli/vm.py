@@ -44,6 +44,14 @@ def register_vm_parser(subparsers: argparse._SubParsersAction) -> None:
     vm_create.add_argument("--machine", default=None, help="Machine type (e.g. q35)")
     vm_create.add_argument("--boot", default=None, help="Boot order (e.g. order=cd;net)")
     vm_create.add_argument("--disk", default=None, help="Disk size (e.g. 32G). Uses --storage if set, else local-lvm.")
+    vm_create.add_argument("--citype", default=None, choices=["nocloud", "configdrive2"],
+                           help="Cloud-init type")
+    vm_create.add_argument("--ciuser", default=None, help="Cloud-init user")
+    vm_create.add_argument("--cipassword", default=None, help="Cloud-init password")
+    vm_create.add_argument("--sshkeys", default=None, help="Cloud-init SSH public keys (file path or inline)")
+    vm_create.add_argument("--nameserver", default=None, help="Cloud-init DNS server")
+    vm_create.add_argument("--searchdomain", default=None, help="Cloud-init DNS search domain")
+    vm_create.add_argument("--cicustom", default=None, help="Cloud-init custom config (user=...,vendor=...)")
     vm_create.set_defaults(func=_vm_create)
 
     # --- vm start ---
@@ -312,6 +320,30 @@ def _vm_create(args: argparse.Namespace, client: ProxmoxClient) -> dict:
         else:
             disk_raw = args.disk
         data["scsi0"] = disk_raw.replace("=", "%3D").replace(":", "%3A").replace(",", "%2C")
+
+    # Cloud-init
+    if args.citype:
+        data["citype"] = args.citype
+    if args.ciuser:
+        data["ciuser"] = args.ciuser
+    if args.cipassword:
+        data["cipassword"] = args.cipassword
+    if args.nameserver:
+        data["nameserver"] = args.nameserver
+    if args.searchdomain:
+        data["searchdomain"] = args.searchdomain
+    if args.cicustom:
+        data["cicustom"] = args.cicustom
+    if args.sshkeys:
+        # sshkeys can be a file path or inline content
+        try:
+            with open(args.sshkeys) as f:
+                sshkeys_value = f.read().strip()
+        except (OSError, FileNotFoundError):
+            sshkeys_value = args.sshkeys
+        # URL-encode the SSH keys for form body
+        # Replace newlines with %0A
+        data["sshkeys"] = sshkeys_value.replace("\n", "%0A").replace("\r", "%0D").replace("=", "%3D").replace(",", "%2C").replace(":", "%3A")
 
     # Build form-encoded body manually — httpx's data= would double-encode %
     from urllib.parse import urlencode
