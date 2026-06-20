@@ -18,27 +18,27 @@ The **Secret** is shown only once — save it immediately.
 > Unchecking is simpler but broader.  Check it if you want to lock down
 > the token independently of the user.
 
-## The Recommended Role: `proxcli`
+## Recommended Roles
 
-Create **one custom role** and assign it to your user (or API token).
-This role covers all proxcli operations — read-only inspection, VM
-lifecycle, cloud-init, snapshots, backups, firewall, pool management,
-and Ceph/disks.
+Split privileges by path so each ACL only carries what it needs:
 
 ```
-Role name: proxcli
+Role name: proxcli-sys
 
-Privileges:
-  ── system ──
-  Sys.Audit
+  Sys.Audit                    ← cluster/nodes/status/tasks/logs (read-only)
+  Sys.Modify                   ← cluster firewall
 
-  ── storage ──
+
+Role name: proxcli-storage
+
   Datastore.Allocate
   Datastore.AllocateSpace
   Datastore.AllocateTemplate
   Datastore.Audit
 
-  ── VMs ──
+
+Role name: proxcli-vm
+
   VM.Allocate
   VM.Audit
   VM.Backup
@@ -58,32 +58,33 @@ Privileges:
   VM.Snapshot
   VM.Snapshot.Rollback
 
-  ── guest agent ──
-  VM.GuestAgent.Audit
-  VM.GuestAgent.FileRead
-
-  ── pools ──
   Pool.Allocate
   Pool.Audit
 
-  ── firewall (cluster/node/VM) ──
-  Sys.Modify
+
+Role name: proxcli-node
+
+  VM.GuestAgent.Audit
+  VM.GuestAgent.FileRead
 ```
 
 ```bash
-# ACL — assign to all relevant paths.  Inheritance does the rest:
-#   /           → Sys.Audit, Sys.Modify (cluster firewall)
-#   /storage    → Datastore.*
-#   /vms        → VM.*, Pool.*
-#   /nodes      → VM.GuestAgent.*
-
-pvesh set /access/acl          --path /          --roles proxcli --users xezpeleta@pve
-pvesh set /access/acl          --path /storage   --roles proxcli --users xezpeleta@pve
-pvesh set /access/acl          --path /vms       --roles proxcli --users xezpeleta@pve
-pvesh set /access/acl          --path /nodes     --roles proxcli --users xezpeleta@pve
+# Assign each role to its path:
+pvesh set /access/acl --path /        --roles proxcli-sys    --users xezpeleta@pve
+pvesh set /access/acl --path /storage --roles proxcli-storage --users xezpeleta@pve
+pvesh set /access/acl --path /vms     --roles proxcli-vm     --users xezpeleta@pve
+pvesh set /access/acl --path /nodes   --roles proxcli-node   --users xezpeleta@pve
 ```
 
-That's it.  One role, four ACL paths, and proxcli can do everything.
+That's it.  Four roles, four ACLs, zero privilege creep — each path
+only gets what proxcli actually uses there.
+
+| Path | Role | Why |
+|------|------|-----|
+| `/` | `proxcli-sys` | `cluster status`, `node show`, `task list`, `ceph status`, `cluster log`, `cluster firewall` |
+| `/storage` | `proxcli-storage` | `storage list/upload`, `vm create` (disk + import) |
+| `/vms` | `proxcli-vm` | `vm list/create/start/stop`, snapshots, backups, `pool` |
+| `/nodes` | `proxcli-node` | QEMU guest agent interfaces, per-node Ceph logs |
 
 > **ACL management** (`proxmox acl`) and **user management**
 > (`proxmox user`) require `Permissions.Modify`, which is only in the
