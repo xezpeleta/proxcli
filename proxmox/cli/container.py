@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 
 from proxmox.client.client import ProxmoxClient
-from proxmox.utils.helpers import vmid_type
+from proxmox.utils.helpers import resolve_vmid, vmid_type
 
 
 def register_container_parser(subparsers: argparse._SubParsersAction) -> None:
@@ -27,7 +27,7 @@ def register_container_parser(subparsers: argparse._SubParsersAction) -> None:
     # --- container create ---
     ct_create = ct_sub.add_parser("create", help="Create a new container")
     ct_create.add_argument("--node", required=True, help="Target node")
-    ct_create.add_argument("--vmid", type=vmid_type, required=True, help="Container ID")
+    ct_create.add_argument("--vmid", type=vmid_type, default=None, help="Container ID (auto-assigned if omitted)")
     ct_create.add_argument("--ostemplate", required=True, help="OS template")
     ct_create.add_argument("--storage", default=None, help="Storage for the container")
     ct_create.add_argument("--memory", type=int, default=512, help="Memory in MB")
@@ -117,7 +117,7 @@ def _ct_show(args: argparse.Namespace, client: ProxmoxClient) -> dict:
 
 def _ct_create(args: argparse.Namespace, client: ProxmoxClient) -> dict:
     data: dict = {
-        "vmid": args.vmid,
+        "vmid": resolve_vmid(client, args.vmid),
         "ostemplate": args.ostemplate,
         "memory": args.memory,
         "cores": args.cores,

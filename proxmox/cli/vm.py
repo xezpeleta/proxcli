@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 
 from proxmox.client.client import ProxmoxClient
-from proxmox.utils.helpers import vmid_type
+from proxmox.utils.helpers import resolve_vmid, vmid_type
 
 
 def register_vm_parser(subparsers: argparse._SubParsersAction) -> None:
@@ -27,7 +27,7 @@ def register_vm_parser(subparsers: argparse._SubParsersAction) -> None:
     # --- vm create ---
     vm_create = vm_sub.add_parser("create", help="Create a new VM")
     vm_create.add_argument("--node", required=True, help="Target node")
-    vm_create.add_argument("--vmid", type=vmid_type, required=True, help="VM ID")
+    vm_create.add_argument("--vmid", type=vmid_type, default=None, help="VM ID (auto-assigned if omitted)")
     vm_create.add_argument("--memory", type=int, required=True, help="Memory in MB")
     vm_create.add_argument("--cores", type=int, default=1, help="CPU cores (default: 1)")
     vm_create.add_argument("--net", default=None, help="Network config (e.g. model=virtio,bridge=vmbr0)")
@@ -141,7 +141,7 @@ def _vm_show(args: argparse.Namespace, client: ProxmoxClient) -> dict:
 
 def _vm_create(args: argparse.Namespace, client: ProxmoxClient) -> dict:
     data: dict = {
-        "vmid": args.vmid,
+        "vmid": resolve_vmid(client, args.vmid),
         "memory": args.memory,
         "cores": args.cores,
     }

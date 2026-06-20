@@ -8,6 +8,7 @@ import pytest
 from proxmox.client.auth import AuthManager
 from proxmox.client.client import ProxmoxClient
 from proxmox.client.exceptions import ProxmoxAPIError
+from proxmox.utils.helpers import resolve_vmid
 
 
 class TestProxmoxClient:
@@ -119,3 +120,43 @@ class TestProxmoxClient:
         client = ProxmoxClient("https://pve:8006/", AuthManager())
         result = client.get("/nodes")
         assert result == []
+
+
+class TestResolveVmid:
+    def test_returns_provided_vmid(self, mock_httpx_client):
+        """When a vmid is provided, return it without calling the API."""
+        client = ProxmoxClient("https://pve:8006", AuthManager())
+        result = resolve_vmid(client, 110)
+        assert result == 110
+        assert len(mock_httpx_client.get_requests()) == 0
+
+    def test_fetches_nextid_when_vmid_is_none(self, mock_httpx_client):
+        """When vmid is None, call /cluster/nextid."""
+        mock_httpx_client.add_response(
+            url="https://pve:8006/api2/json/cluster/nextid",
+            json={"data": "102"},
+        )
+        client = ProxmoxClient("https://pve:8006", AuthManager())
+        result = resolve_vmid(client, None)
+        assert result == 102
+        assert len(mock_httpx_client.get_requests()) == 1
+
+    def test_fetches_nextid_when_vmid_is_zero(self, mock_httpx_client):
+        """When vmid is 0, also fetch nextid (0 is not a valid VMID)."""
+        mock_httpx_client.add_response(
+            url="https://pve:8006/api2/json/cluster/nextid",
+            json={"data": "105"},
+        )
+        client = ProxmoxClient("https://pve:8006", AuthManager())
+        result = resolve_vmid(client, 0)
+        assert result == 105
+
+    def test_nextid_returns_integer(self, mock_httpx_client):
+        """Some Proxmox versions return nextid as integer."""
+        mock_httpx_client.add_response(
+            url="https://pve:8006/api2/json/cluster/nextid",
+            json={"data": 108},
+        )
+        client = ProxmoxClient("https://pve:8006", AuthManager())
+        result = resolve_vmid(client, None)
+        assert result == 108
