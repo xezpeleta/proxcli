@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-06-20
+
+### Fixed
+- **vm create** now works against real Proxmox 9.x clusters.  The `--ostemplate`
+  flag has been renamed to `--cdrom` (``ostemplate`` is an LXC parameter, not
+  QEMU).  The handler now builds a raw form-encoded body to avoid httpx
+  double-encoding ``%`` characters in IDE and network configuration strings.
+
+### Changed
+- **vm create** ``--net`` now uses ``action="append"`` so you can repeat it
+  for multiple NICs (net0, net1, …).
+
+### Added
+- **vm create** gains new optional flags: ``--scsihw``, ``--bios``,
+  ``--machine``, ``--boot``, ``--disk``.
+- ``ProxmoxClient.request()`` now accepts a ``content`` keyword argument
+  for sending a pre-encoded raw body instead of ``data``.
+
 ## [0.7.2] - 2026-06-20
 
 ### Added
@@ -100,6 +118,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CSRF ticket auto-refresh on 401.
 - AI-agent-friendly: default JSON output, strict exit codes, `--dry-run` mode.
 
+[0.8.0]: https://github.com/xezpeleta/proxcli/releases/tag/v0.8.0
 [0.7.2]: https://github.com/xezpeleta/proxcli/releases/tag/v0.7.2
 [0.7.1]: https://github.com/xezpeleta/proxcli/releases/tag/v0.7.1
 [0.7.0]: https://github.com/xezpeleta/proxcli/releases/tag/v0.7.0
