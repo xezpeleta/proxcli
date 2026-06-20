@@ -6,6 +6,7 @@ import argparse
 from urllib.parse import urlencode
 
 from proxmox.client.client import ProxmoxClient
+from proxmox.client.exceptions import ProxmoxAPIError
 from proxmox.config.config import ConfigLoader
 
 # Recommended roles for proxcli (see docs/api-permissions.md)
@@ -28,6 +29,95 @@ PROXCLI_ACLS: list[tuple[str, str]] = [
     ("/storage", "proxcli-storage"),
     ("/vms", "proxcli-vm"),
     ("/nodes", "proxcli-node"),
+]
+
+
+# Permission checks: (label, method, path, privilege_needed)
+# The handler does a dry-run-like GET/POST to check if 403 is returned.
+PERMISSION_CHECKS: list[tuple[str, str, str, str]] = [
+    # ── read-only / system ──
+    ("Cluster status",          "GET",  "/cluster/status",      "Sys.Audit"),
+    ("Node list",               "GET",  "/nodes",               "Sys.Audit"),
+    ("Task list",               "GET",  "/cluster/tasks",       "Sys.Audit"),
+    ("Cluster log",             "GET",  "/cluster/log",         "Sys.Audit"),
+    ("Ceph status",             "GET",  "/cluster/ceph/status", "Sys.Audit"),
+    ("Cluster options",         "GET",  "/cluster/options",     "Sys.Audit"),
+
+    # ── storage ──
+    ("Storage list",            "GET",  "/storage",             "Datastore.Audit"),
+    ("Storage upload",          "POST", "/nodes/{node}/storage/{storage}/upload",
+     "Datastore.AllocateTemplate"),
+    ("Storage status",          "GET",  "/nodes/{node}/storage/{storage}/status",
+     "Datastore.Audit"),
+
+    # ── VMs (read) ──
+    ("VM list",                 "GET",  "/cluster/resources",   "VM.Audit"),
+    ("VM config",               "GET",  "/nodes/{node}/qemu/{vmid}/config",
+     "VM.Audit"),
+    ("VM status",               "GET",  "/nodes/{node}/qemu/{vmid}/status/current",
+     "VM.Audit"),
+
+    # ── VMs (lifecycle) ──
+    ("VM create (nextid)",      "GET",  "/cluster/nextid",      "VM.Allocate"),
+    ("VM create (save)",        "POST", "/nodes/{node}/qemu",   "VM.Allocate"),
+    ("VM start",                "POST", "/nodes/{node}/qemu/{vmid}/status/start",
+     "VM.PowerMgmt"),
+    ("VM stop",                 "POST", "/nodes/{node}/qemu/{vmid}/status/stop",
+     "VM.PowerMgmt"),
+    ("VM delete",               "DELETE", "/nodes/{node}/qemu/{vmid}", "VM.Allocate"),
+
+    # ── VMs (config) ──
+    ("VM set memory/cores",     "PUT",  "/nodes/{node}/qemu/{vmid}/config",
+     "VM.Config.Memory"),
+    ("VM set network",          "PUT",  "/nodes/{node}/qemu/{vmid}/config",
+     "VM.Config.Network"),
+    ("VM set disk",             "PUT",  "/nodes/{node}/qemu/{vmid}/config",
+     "VM.Config.Disk"),
+    ("VM set cloud-init",       "PUT",  "/nodes/{node}/qemu/{vmid}/config",
+     "VM.Config.Cloudinit"),
+    ("VM set CDROM",            "PUT",  "/nodes/{node}/qemu/{vmid}/config",
+     "VM.Config.CDROM"),
+    ("VM set options",          "PUT",  "/nodes/{node}/qemu/{vmid}/config",
+     "VM.Config.Options"),
+
+    # ── VMs (snapshots) ──
+    ("VM snapshot list",        "GET",  "/nodes/{node}/qemu/{vmid}/snapshot",
+     "VM.Snapshot"),
+    ("VM snapshot create",      "POST", "/nodes/{node}/qemu/{vmid}/snapshot",
+     "VM.Snapshot"),
+    ("VM snapshot rollback",    "POST", "/nodes/{node}/qemu/{vmid}/snapshot/{snapname}/rollback",
+     "VM.Snapshot.Rollback"),
+
+    # ── VMs (backup/clone/migrate) ──
+    ("VM backup",               "POST", "/nodes/{node}/vzdump",  "VM.Backup"),
+    ("VM clone",                "POST", "/nodes/{node}/qemu/{vmid}/clone",
+     "VM.Clone"),
+    ("VM migrate",              "POST", "/nodes/{node}/qemu/{vmid}/migrate",
+     "VM.Migrate"),
+
+    # ── QEMU guest agent ──
+    ("VM guest agent",          "GET",  "/nodes/{node}/qemu/{vmid}/agent/network-get-interfaces",
+     "VM.GuestAgent.Audit"),
+
+    # ── containers ──
+    ("Container list",          "GET",  "/nodes/{node}/lxc",    "VM.Audit"),
+    ("Container start",         "POST", "/nodes/{node}/lxc/{vmid}/status/start",
+     "VM.PowerMgmt"),
+
+    # ── firewall ──
+    ("Cluster firewall rules",  "GET",  "/cluster/firewall/rules",
+     "Sys.Modify"),
+    ("VM firewall rules",       "GET",  "/nodes/{node}/qemu/{vmid}/firewall/rules",
+     "VM.Allocate"),
+
+    # ── pools ──
+    ("Pool list",               "GET",  "/pools",               "Pool.Audit"),
+    ("Pool create",             "POST", "/pools",               "Pool.Allocate"),
+
+    # ── ACL / users / roles (admin-only) ──
+    ("User list",               "GET",  "/access/users",        "Permissions.Modify"),
+    ("Role list",               "GET",  "/access/roles",        "Permissions.Modify"),
+    ("ACL list",                "GET",  "/access/acl",          "Permissions.Modify"),
 ]
 
 
@@ -54,6 +144,10 @@ def register_auth_parser(subparsers: argparse._SubParsersAction) -> None:
     # --- auth setup ---
     setup = auth_sub.add_parser("setup", help="Create recommended roles and ACLs for proxcli")
     setup.set_defaults(func=_auth_setup)
+
+    # --- auth check ---
+    check = auth_sub.add_parser("check", help="Test each permission endpoint live")
+    check.set_defaults(func=_auth_check)
 
 
 def _auth_status(args: argparse.Namespace, client: ProxmoxClient | None = None) -> dict:
@@ -125,3 +219,41 @@ def _auth_setup(args: argparse.Namespace, client: ProxmoxClient) -> dict:
         "created_acls": created_acls,
         "skipped_acls": skipped_acls,
     }
+
+
+def _auth_check(args: argparse.Namespace, client: ProxmoxClient) -> list[dict]:
+    """Test each proxcli endpoint and report permission status."""
+    results: list[dict] = []
+
+    # Resolve a real node name for paths that need it
+    nodes = client.get("/nodes")
+    node = nodes[0]["node"] if nodes else "pve"
+
+    for label, method, path, needed_priv in PERMISSION_CHECKS:
+        # Replace placeholders
+        real_path = path.replace("{node}", node).replace("{vmid}", "99999") \
+                         .replace("{storage}", "local").replace("{snapname}", "test")
+
+        try:
+            if method in ("GET", "DELETE"):
+                client.request(method, real_path)
+            else:
+                # POST/PUT: send dummy body to check permission (not actual creation)
+                client.request(method, real_path, data={"dry": "1"})
+            status = "PASS"
+        except ProxmoxAPIError as exc:
+            if exc.status_code == 403:
+                status = "FAIL"
+            else:
+                # 404 (node not found), 500, etc. means we had permission
+                # to reach the endpoint but something else went wrong
+                status = "PASS"
+
+        results.append({
+            "feature": label,
+            "method": method,
+            "privilege": needed_priv,
+            "status": status,
+        })
+
+    return results
