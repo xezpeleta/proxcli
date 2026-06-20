@@ -57,6 +57,7 @@ def build_root_parser() -> argparse.ArgumentParser:
     # Import and register subcommands
     from proxmox.cli.auth import register_auth_parser
     from proxmox.cli.cluster import register_cluster_parser
+    from proxmox.cli.completion import register_completion_parser
     from proxmox.cli.container import register_container_parser
     from proxmox.cli.node import register_node_parser
     from proxmox.cli.pool import register_pool_parser
@@ -71,6 +72,7 @@ def build_root_parser() -> argparse.ArgumentParser:
     register_container_parser(subparsers)
     register_storage_parser(subparsers)
     register_cluster_parser(subparsers)
+    register_completion_parser(subparsers)
     register_task_parser(subparsers)
 
     return parser
@@ -204,13 +206,17 @@ def main(argv: list[str] | None = None) -> None:
         return
 
     try:
-        # auth status and clear don't need a client
-        if args.resource == "auth" and args.action in ("status", "clear"):
+        # auth status, clear, and completion don't need a client
+        if (args.resource == "auth" and args.action in ("status", "clear")) or args.resource == "completion":
             if hasattr(args, "func"):
                 result = args.func(args, None)
                 if result is not None:
-                    output = format_output(result, args.output)
-                    print(output)
+                    if args.resource == "completion":
+                        # Completion scripts are raw shell code, not JSON
+                        print(result)
+                    else:
+                        output = format_output(result, args.output)
+                        print(output)
             return
 
         _, overrides = _merge_config(args)

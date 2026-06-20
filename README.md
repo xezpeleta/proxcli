@@ -28,6 +28,11 @@ proxmox auth login --url https://192.168.1.10:8006 --username root@pam --passwor
 # Or with an API token
 proxmox auth login --url https://192.168.1.10:8006 --username root@pam --api-token 'root@pam!my-token=deadbeef...'
 
+# Enable shell completions
+source <(proxmox completion bash)          # bash
+source <(proxmox completion zsh)           # zsh
+proxmox completion fish | source           # fish  (or save to ~/.config/fish/completions/proxmox.fish)
+
 # Check auth status
 proxmox auth status
 
@@ -104,6 +109,27 @@ proxmox --insecure vm list
 proxmox auth login   # Save credentials
 proxmox auth status  # Show current auth context
 proxmox auth clear   # Remove saved credentials
+```
+
+### Completion
+
+```bash
+proxmox completion bash    # Emit bash completion script
+proxmox completion zsh     # Emit zsh completion script
+proxmox completion fish    # Emit fish completion script
+```
+
+Add to your shell's rc file:
+
+```bash
+# bash (~/.bashrc)
+source <(proxmox completion bash)
+
+# zsh (~/.zshrc)
+source <(proxmox completion zsh)
+
+# fish (~/.config/fish/completions/proxmox.fish)
+proxmox completion fish > ~/.config/fish/completions/proxmox.fish
 ```
 
 ### VM (QEMU)
