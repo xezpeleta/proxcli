@@ -193,10 +193,64 @@ def _print_command_help(args: argparse.Namespace) -> None:
     )
 
 
+GLOBAL_FLAGS = {
+    "--url", "--username", "--password", "--password-stdin", "--api-token",
+    "--output", "--dry-run", "--insecure", "--timeout", "--verbose", "--version",
+    "-h", "--help",
+}
+
+# Flags that take a value (the value follows the flag)
+GLOBAL_FLAGS_WITH_VALUE = {"--url", "--username", "--password", "--api-token", "--output", "--timeout"}
+
+
+def _hint_global_flags_order(argv: list[str]) -> None:
+    """If user placed global flags after the resource, show a helpful hint."""
+    resource_pos = -1
+    resources = {"auth", "vm", "node", "pool", "container", "storage", "cluster", "completion", "task"}
+    for i, arg in enumerate(argv):
+        if arg in resources:
+            resource_pos = i
+            break
+    if resource_pos < 0:
+        return
+    # Check if any global flag (with or without value) appears after the resource
+    for i in range(resource_pos, len(argv)):
+        arg = argv[i]
+        if arg in GLOBAL_FLAGS:
+            # Build a corrected example
+            resource_part = argv[resource_pos:]
+            flags_before = []
+            for j in range(resource_pos):
+                if argv[j] in GLOBAL_FLAGS or (j > 0 and argv[j-1] in GLOBAL_FLAGS_WITH_VALUE):
+                    flags_before.append(argv[j])
+            example = f"proxmox {arg} {' '.join(resource_part[:2])} ..."
+            log_error(
+                f"Global flag '{arg}' must come before the resource. "
+                f"Try: {example}"
+            )
+            return
+        # Check if this arg is the value of a previous global flag
+        if i > 0 and argv[i-1] in GLOBAL_FLAGS_WITH_VALUE and i-1 > resource_pos:
+            log_error(
+                f"Global flag '{argv[i-1]}' must come before the resource. "
+                f"Try: proxmox {argv[i-1]} {arg} {' '.join(argv[resource_pos:resource_pos+2])} ..."
+            )
+            return
+
+
 def main(argv: list[str] | None = None) -> None:
     """Main entry point."""
     parser = build_root_parser()
-    args = parser.parse_args(argv)
+
+    effective_argv = argv if argv is not None else sys.argv[1:]
+
+    try:
+        args = parser.parse_args(effective_argv)
+    except SystemExit as e:
+        # If argparse rejected the args, check for global flags placed after resource
+        if effective_argv:
+            _hint_global_flags_order(effective_argv)
+        sys.exit(e.code if isinstance(e.code, int) else 1)
 
     # --help or no subcommand: just show help
     if args.resource is None:
