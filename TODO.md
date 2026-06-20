@@ -15,6 +15,10 @@ Completed items are marked with a check. Implementation notes are preserved for 
 - [x] **QEMU guest agent interfaces** — `proxmox vm agent interfaces <vmid>`. Wraps `/nodes/{node}/qemu/{vmid}/agent/network-get-interfaces`.
 - [x] **Streaming task logs** — `proxmox task log <upid> [--follow]`. Polls `/nodes/{node}/tasks/{upid}/log`.
 - [x] **Global flag hint** — If user places `--output` / `--dry-run` / etc. after the resource, a hint suggests the correct order.
+- [x] **User & permission management** — `proxmox user` (list/show/create/update/delete), `proxmox role` (list/show/create/update/delete), `proxmox acl` (list/show/add/delete). Wraps `/access/users`, `/access/roles`, `/access/acl`. ACL write requires `Permissions.Modify` (Administrator).
+- [x] **VM cloud-init support** — `vm create` flags for citype, ciuser, cipassword, sshkeys, nameserver, searchdomain, cicustom + auto cloud-init drive creation. `vm cloudinit generate` for regeneration.
+- [x] **VM disk import** — `vm create --import-from <storage:path>` imports an existing disk image as VM boot disk.
+- [x] **Docs** — `docs/cloud-init.md` (cloud-init VM workflow), `docs/api-permissions.md` (minimum API privileges).
 
 ## v1.1 — Polish & Usability
 
@@ -33,11 +37,6 @@ Completed items are marked with a check. Implementation notes are preserved for 
 
 - [ ] **Backup (`vzdump`) management**
   - `proxmox backup` subcommand: `list`, `create`, `show`, `delete`. Wrap `/nodes/{node}/vzdump` and `/nodes/{node}/storage/{storage}/content` for backup files.
-
-- [ ] **User & permission management**
-  - `proxmox user` subcommand: `list`, `show`, `create`, `update`, `delete`.
-  - `proxmox role` subcommand: `list`, `show`, `create`, `update`, `delete`.
-  - `proxmox acl` subcommand: `list`, `show`. Wraps `/access/users`, `/access/roles`, `/access/acl`, `/access/groups`.
 
 - [ ] **Network management**
   - `proxmox network` subcommand: `list`, `show`, `update` for bridges, bonds, VLANs. Wraps `/nodes/{node}/network`.

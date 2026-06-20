@@ -10,6 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.9.0] - 2026-06-20
 
 ### Added
+- **user, role, and ACL management**: ``proxmox user`` (list, show, create,
+  update, delete), ``proxmox role`` (list, show, create, update, delete),
+  ``proxmox acl`` (list, show, add, delete).  Wraps ``/access/users``,
+  ``/access/roles``, and ``/access/acl`` endpoints.  ACL write operations
+  require ``Permissions.Modify`` (Administrator role).
 - **vm create cloud-init support**: ``--citype``, ``--ciuser``,
   ``--cipassword``, ``--sshkeys`` (file path or inline),
   ``--nameserver``, ``--searchdomain``, ``--cicustom``.
@@ -25,6 +30,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **docs/cloud-init.md**: complete guide on creating and managing
   cloud-init VMs with proxcli, including prerequisites, examples,
   custom user-data, and troubleshooting.
+- **docs/api-permissions.md**: minimum API privilege reference for the
+  cloud-init VM workflow and other proxcli operations.
 
 ## [0.8.2] - 2026-06-20
 
