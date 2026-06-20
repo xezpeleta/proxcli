@@ -5,6 +5,8 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  release:
+    types: [published]
 
 jobs:
   lint:
@@ -55,7 +57,7 @@ jobs:
 
   publish:
     runs-on: ubuntu-24.04
-    if: github.ref == 'refs/heads/main'
+    if: github.event_name == 'release'
     needs: [build]
     environment: pypi
     steps:
@@ -70,4 +72,4 @@ jobs:
           name: dist
           path: dist/
 
-      - run: uv publish --token "${{ secrets.PYPI_TOKEN }}" --check-url https://pypi.org/simple
+      - run: uv publish --token "${{ secrets.PYPI_TOKEN }}"
