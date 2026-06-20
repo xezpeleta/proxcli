@@ -18,6 +18,37 @@ The **Secret** is shown only once — save it immediately.
 > Unchecking is simpler but broader.  Check it if you want to lock down
 > the token independently of the user.
 
+## Quickstart (3 steps)
+
+```bash
+# 1. Bootstrap roles + ACLs (once, needs Administrator)
+proxmox auth setup
+
+# 2. Create API token (UI: Datacenter → Permissions → API Tokens → Add)
+#     User:     xezpeleta@pve
+#     Token ID: proxcli
+#     ☐ Privilege Separation (unchecked — inherits user's roles)
+#     Save the secret!
+
+# 3. Write credentials.json with the new token secret
+cat > ~/.config/proxmox-cli/credentials.json <<'EOF'
+{
+  "url": "https://your-pve.example.com:8006",
+  "username": "xezpeleta@pve",
+  "auth_method": "api_token",
+  "api_token_id": "proxcli",
+  "api_token_secret": "your-token-secret-here",
+  "verify_tls": false
+}
+EOF
+chmod 400 ~/.config/proxmox-cli/credentials.json
+
+# Done — everything works
+proxmox auth status
+proxmox cluster status
+proxmox vm list
+```
+
 ## Recommended Roles
 
 Split privileges by path so each ACL only carries what it needs:
