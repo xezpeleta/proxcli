@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.1] - 2026-06-21
+
 ### Fixed
 - **``proxmox auth setup``**: now uses the correct ``tokens`` (plural) form
   parameter for token ACLs instead of ``tokenid``, which Proxmox's REST API
