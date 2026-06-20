@@ -85,6 +85,23 @@ proxmox vm list --username root@pam --url https://pve:8006
 proxmox --insecure vm list
 ```
 
+### Manual config file
+
+If you prefer to hand-edit credentials, create `~/.config/proxmox-cli/credentials.json` (chmod 600):
+
+```json
+{
+  "url": "https://192.168.1.10:8006",
+  "username": "root@pam",
+  "auth_method": "api_token",
+  "api_token_id": "my-token",
+  "api_token_secret": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+  "verify_tls": false
+}
+```
+
+For password auth, use `"auth_method": "password"` with a `"password"` field instead of `api_token_id` / `api_token_secret`.
+
 ## Command Reference
 
 ### Global flags
