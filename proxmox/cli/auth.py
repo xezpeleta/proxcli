@@ -191,27 +191,33 @@ def _auth_setup(args: argparse.Namespace, client: ProxmoxClient) -> dict:
         client.request("POST", "/access/roles", content=content)
         created_roles.append(role_name)
 
-    # 2. Create ACLs
-    # We need the username from config to assign ACLs
+    # 2. Create ACLs for the token (not the user — avoids overwriting user roles)
+    # Token format: user!tokenid
     loader = ConfigLoader()
     creds = loader.load()
-    ug = creds.username
+    token_user = creds.username  # e.g. xezpeleta@pve
+    token_id = creds.api_token_id  # e.g. proxcli
+    token_ug = f"{token_user}!{token_id}" if token_id else token_user
 
     for path, role in PROXCLI_ACLS:
         existing_acls = client.get("/access/acl")
-        # Check if this exact ACL already exists
         already = any(
             a.get("path") == path
             and a.get("roleid") == role
-            and a.get("ugid") == ug
+            and a.get("ugid") == token_ug
             for a in existing_acls
         )
         if already:
-            skipped_acls.append(f"{path} → {role} ({ug})")
+            skipped_acls.append(f"{path} → {role} ({token_ug})")
             continue
-        content = _safe_encode({"path": path, "roles": role, "users": ug})
+
+        # PUT to add ACL for the token (only sets this role+path, doesn't touch user roles)
+        data: dict[str, str] = {"path": path, "roles": role, "tokenid": token_id}
+        if token_user and "@" in token_user:
+            data["users"] = token_user
+        content = _safe_encode(data)
         client.request("PUT", "/access/acl", content=content)
-        created_acls.append(f"{path} → {role} ({ug})")
+        created_acls.append(f"{path} → {role} ({token_ug})")
 
     return {
         "created_roles": created_roles,

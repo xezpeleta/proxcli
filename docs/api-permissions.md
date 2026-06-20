@@ -99,12 +99,17 @@ Role name: proxcli-node
 ```
 
 ```bash
-# Assign each role to its path:
-pvesh set /access/acl --path /        --roles proxcli-sys    --users xezpeleta@pve
-pvesh set /access/acl --path /storage --roles proxcli-storage --users xezpeleta@pve
-pvesh set /access/acl --path /vms     --roles proxcli-vm     --users xezpeleta@pve
-pvesh set /access/acl --path /nodes   --roles proxcli-node   --users xezpeleta@pve
+# Assign each role to the token (not the user — safe, won't affect user's PVEAdmin):
+pvesh set /access/acl --path /        --roles proxcli-sys    --tokenid proxcli --users xezpeleta@pve
+pvesh set /access/acl --path /storage --roles proxcli-storage --tokenid proxcli --users xezpeleta@pve
+pvesh set /access/acl --path /vms     --roles proxcli-vm     --tokenid proxcli --users xezpeleta@pve
+pvesh set /access/acl --path /nodes   --roles proxcli-node   --tokenid proxcli --users xezpeleta@pve
 ```
+
+> **Safe by design**: these ACLs target the **token** (`--tokenid proxcli`),
+> not the user.  Your user account keeps whatever roles it already has
+> (PVEAdmin, Administrator, etc.).  The token gets exactly the proxcli
+> privileges without touching anything else.
 
 That's it.  Four roles, four ACLs, zero privilege creep — each path
 only gets what proxcli actually uses there.
