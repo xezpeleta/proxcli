@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.2] - 2026-06-20
+
+### Added
+- Helpful hint when global flags are placed after the resource subcommand.
+  Running `proxmox vm list --output table` now shows:
+  `Error: Global flag '--output' must come before the resource. Try: proxmox --output vm list ...`
+
 ## [0.7.1] - 2026-06-20
 
 ### Fixed
@@ -93,6 +100,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CSRF ticket auto-refresh on 401.
 - AI-agent-friendly: default JSON output, strict exit codes, `--dry-run` mode.
 
+[0.7.2]: https://github.com/xezpeleta/proxcli/releases/tag/v0.7.2
 [0.7.1]: https://github.com/xezpeleta/proxcli/releases/tag/v0.7.1
 [0.7.0]: https://github.com/xezpeleta/proxcli/releases/tag/v0.7.0
 [0.6.0]: https://github.com/xezpeleta/proxcli/releases/tag/v0.6.0
