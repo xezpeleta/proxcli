@@ -1,5 +1,5 @@
 [project]
-name = "proxmox"
+name = "proxcli"
 version = "0.1.0"
 description = "A CLI tool to interact with Proxmox VE nodes and clusters via the REST API"
 readme = "README.md"
@@ -33,6 +33,9 @@ proxmox = "proxmox.cli.main:main"
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["proxmox"]
 
 [tool.ruff]
 line-length = 100

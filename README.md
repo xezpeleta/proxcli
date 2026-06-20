@@ -13,7 +13,7 @@ Requires Python 3.10+ and [uv](https://docs.astral.sh/uv/).
 uv tool install proxmox
 
 # From Git
-uv tool install git+https://github.com/xezpeleta/proxmox-cli.git
+uv tool install git+https://github.com/xezpeleta/proxcli.git
 
 # From local checkout
 uv tool install .
@@ -215,8 +215,8 @@ proxmox vm show 999 || echo "VM not found"
 
 ```bash
 # Clone
-git clone https://github.com/xezpeleta/proxmox-cli.git
-cd proxmox-cli
+git clone https://github.com/xezpeleta/proxcli.git
+cd proxcli
 
 # Install dev dependencies
 uv sync
