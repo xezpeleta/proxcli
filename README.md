@@ -118,6 +118,18 @@ proxmox vm reboot <vmid> [--node <node>]
 proxmox vm suspend <vmid> [--node <node>]
 proxmox vm resume <vmid> [--node <node>]
 proxmox vm delete <vmid> [--node <node>] [--force] [--purge]
+
+# VM firewall
+proxmox vm firewall options <vmid> [--node <node>]
+proxmox vm firewall enable <vmid> [--node <node>]
+proxmox vm firewall disable <vmid> [--node <node>]
+proxmox vm firewall policy <vmid> --in-policy ACCEPT --out-policy DROP [--node <node>]
+proxmox vm firewall rules list <vmid> [--node <node>]
+proxmox vm firewall rules add <vmid> --action ACCEPT --dport 22 --proto tcp [--source <cidr>] [--comment <text>]
+proxmox vm firewall rules show <vmid> <pos>
+proxmox vm firewall rules update <vmid> <pos> --action DROP
+proxmox vm firewall rules delete <vmid> <pos>
+proxmox vm firewall refs <vmid> [--type alias|ipset|group]
 ```
 
 ### Container (LXC)
@@ -129,6 +141,18 @@ proxmox container create --node <node> --vmid <id> --ostemplate <tmpl> [--memory
 proxmox container start <vmid> [--node <node>]
 proxmox container stop <vmid> [--node <node>]
 proxmox container delete <vmid> [--node <node>] [--force] [--purge]
+
+# Container firewall
+proxmox container firewall options <vmid> [--node <node>]
+proxmox container firewall enable <vmid> [--node <node>]
+proxmox container firewall disable <vmid> [--node <node>]
+proxmox container firewall policy <vmid> --in-policy ACCEPT --out-policy DROP
+proxmox container firewall rules list <vmid> [--node <node>]
+proxmox container firewall rules add <vmid> --action ACCEPT --dport 22 --proto tcp
+proxmox container firewall rules show <vmid> <pos>
+proxmox container firewall rules update <vmid> <pos> --action DROP
+proxmox container firewall rules delete <vmid> <pos>
+proxmox container firewall refs <vmid> [--type alias|ipset|group]
 ```
 
 ### Node
@@ -137,6 +161,18 @@ proxmox container delete <vmid> [--node <node>] [--force] [--purge]
 proxmox node list
 proxmox node show <node>
 proxmox node status [<node>]
+
+# Node firewall
+proxmox node firewall options <node>
+proxmox node firewall enable <node>
+proxmox node firewall disable <node>
+proxmox node firewall policy <node> --in-policy ACCEPT --out-policy DROP
+proxmox node firewall rules list <node>
+proxmox node firewall rules add <node> --action ACCEPT --dport 22 --proto tcp
+proxmox node firewall rules show <node> <pos>
+proxmox node firewall rules update <node> <pos> --action DROP
+proxmox node firewall rules delete <node> <pos>
+proxmox node firewall refs <node> [--type alias|ipset|group]
 ```
 
 ### Storage
@@ -151,6 +187,28 @@ proxmox storage content <storage> [--node <node>]
 
 ```bash
 proxmox cluster status
+
+# Cluster firewall
+proxmox cluster firewall options
+proxmox cluster firewall enable
+proxmox cluster firewall disable
+proxmox cluster firewall policy --in-policy ACCEPT --out-policy DROP
+proxmox cluster firewall rules                                      # list (shorthand)
+proxmox cluster firewall rules list                                 # list (explicit)
+proxmox cluster firewall rules add --action ACCEPT --dport 22 --source 10.0.0.0/8
+proxmox cluster firewall rules show <pos>
+proxmox cluster firewall rules update <pos> --action DROP
+proxmox cluster firewall rules delete <pos>
+proxmox cluster firewall aliases                                    # list (shorthand)
+proxmox cluster firewall aliases add <name> --cidr 10.0.0.0/24 --comment "web tier"
+proxmox cluster firewall aliases delete <name>
+proxmox cluster firewall ipsets                                     # list (shorthand)
+proxmox cluster firewall ipsets add <name> --comment "trusted hosts"
+proxmox cluster firewall ipsets show <name>
+proxmox cluster firewall ipsets delete <name>
+proxmox cluster firewall ipsets add-cidr <name> --cidr 192.168.1.0/24
+proxmox cluster firewall ipsets delete-cidr <name> --cidr 192.168.1.0/24
+proxmox cluster firewall refs [--type alias|ipset|group]
 ```
 
 ### Task
@@ -237,3 +295,32 @@ uv build
 ## License
 
 MIT
+
+## Firewall Rule Options
+
+Firewall rules share the same flags across cluster, node, VM, and container. The `--macro` flag can be used as a shortcut for common services (e.g., `--macro SSH` sets up port 22/tcp).
+
+| Flag | Values | Description |
+|---|---|---|
+| `--action` | `ACCEPT`, `DENY`, `REJECT` | Rule action (required for `add`) |
+| `--type` | `in`, `out` | Traffic direction (default: `in`) |
+| `--iface` | e.g. `net0` | Network interface |
+| `--source` | CIDR | Source IP/CIDR |
+| `--dest` | CIDR | Destination IP/CIDR |
+| `--dport` | e.g. `80` or `8000-9000` | Destination port |
+| `--sport` | e.g. `1024-65535` | Source port |
+| `--proto` | `tcp`, `udp`, `icmp`, `any` | Protocol |
+| `--macro` | e.g. `SSH`, `HTTP`, `HTTPS`, `Ping` | Pre-defined service macro |
+| `--comment` | text | Comment / description |
+| `--enable` | `0`, `1` | Enable the rule (default: `1`) |
+| `--log` | `emerg`..`debug`, `nolog` | Log level |
+
+Example:
+
+```bash
+# Allow SSH from a specific subnet
+proxmox vm firewall rules add 100 --action ACCEPT --dport 22 --proto tcp --source 192.168.1.0/24 --comment "Admin SSH"
+
+# Or use a macro
+proxmox vm firewall rules add 100 --action ACCEPT --macro SSH --source 192.168.1.0/24
+```
