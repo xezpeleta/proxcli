@@ -39,6 +39,11 @@ def build_root_parser() -> argparse.ArgumentParser:
         help="Output format (default: json)",
     )
     parser.add_argument(
+        "--columns",
+        nargs="+",
+        help="Columns to display in table output (space-separated)",
+    )
+    parser.add_argument(
         "--dry-run", action="store_true", help="Print the API request without executing it"
     )
     parser.add_argument(
@@ -210,7 +215,7 @@ GLOBAL_FLAGS = {
 }
 
 # Flags that take a value (the value follows the flag)
-GLOBAL_FLAGS_WITH_VALUE = {"--url", "--username", "--password", "--api-token", "--output", "--timeout"}
+GLOBAL_FLAGS_WITH_VALUE = {"--url", "--username", "--password", "--api-token", "--output", "--timeout", "--columns"}
 
 
 def _hint_global_flags_order(argv: list[str]) -> None:
@@ -277,7 +282,9 @@ def main(argv: list[str] | None = None) -> None:
                         # Completion scripts are raw shell code, not JSON
                         print(result)
                     else:
-                        output = format_output(result, args.output)
+                        output = format_output(
+                            result, args.output, columns=getattr(args, "columns", None)
+                        )
                         print(output)
             return
 
@@ -288,7 +295,9 @@ def main(argv: list[str] | None = None) -> None:
         if hasattr(args, "func"):
             result = args.func(args, client)
             if result is not None:
-                output = format_output(result, args.output)
+                output = format_output(
+                    result, args.output, columns=getattr(args, "columns", None)
+                )
                 print(output)
         else:
             # No handler was set — show relevant help

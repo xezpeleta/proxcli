@@ -24,11 +24,11 @@ Completed items are marked with a check. Implementation notes are preserved for 
 
 ## v1.1 — Polish & Usability
 
-- [ ] **`--output table` column selection**
-  - Allow `proxmox vm list --output table --columns vmid,name,status,mem` to pick which columns appear in the table.
+- [x] **`--output table` column selection**
+  - ``proxmox --output table --columns vmid,name,status vm list`` picks which columns appear.
 
-- [ ] **Color support in table output**
-  - Use `rich` styling for status values (green= running, red= stopped, yellow= suspended).
+- [x] **Color support in table output**
+  - Status/state values are styled: green for running/active/ok, red for stopped/error, yellow for paused/suspended.
 
 ---
 

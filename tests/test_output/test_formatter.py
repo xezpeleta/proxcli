@@ -47,3 +47,37 @@ class TestFormatOutput:
         result = format_output({"x": 1}, "unknown")
         parsed = json.loads(result)
         assert parsed == {"x": 1}
+
+    def test_table_format_with_columns(self):
+        """--columns restricts which columns appear."""
+        data = [
+            {"vmid": 100, "name": "vm1", "status": "running", "cpus": 2},
+            {"vmid": 101, "name": "vm2", "status": "stopped", "cpus": 4},
+        ]
+        result = format_output(data, "table", columns=["vmid", "status"])
+        assert "vmid" in result
+        assert "status" in result
+        assert "running" in result
+        assert "stopped" in result
+        assert "name" not in result
+        assert "cpus" not in result
+
+    def test_table_format_status_colors(self):
+        """Status values should be colored in table output."""
+        data = [
+            {"vmid": 100, "status": "running"},
+            {"vmid": 101, "status": "stopped"},
+            {"vmid": 102, "status": "paused"},
+        ]
+        result = format_output(data, "table")
+        # Rich ANSI codes for green (running)
+        assert "\x1b" in result  # escape codes present
+        assert "running" in result
+        assert "stopped" in result
+
+    def test_table_format_dict_with_status(self):
+        """Key-value table with status field should be colored."""
+        data = {"status": "running", "cpu": 0.5}
+        result = format_output(data, "table")
+        assert "\x1b" in result  # color codes should be present
+        assert "running" in result
