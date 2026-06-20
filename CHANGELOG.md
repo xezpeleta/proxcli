@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Backup (vzdump) management**: ``proxmox backup`` (list, show, create,
+  delete, tasks, defaults).  Wraps ``/nodes/{node}/vzdump`` for creating
+  backups and ``/nodes/{node}/storage/{storage}/content`` for listing
+  and deleting backup files.  Supports snapshot/suspend/stop modes,
+  compression (lzo/zstd), bandwidth limits, prune settings, and PBS
+  Proxmox Backup Server integration.  Backup tasks can be monitored
+  with ``proxmox task log <upid> --follow``.
+
 ## [0.9.1] - 2026-06-20
 
 ### Added

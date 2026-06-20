@@ -288,6 +288,55 @@ proxmox task log <upid> [--follow]
 `proxmox task log --follow` polls `/nodes/{node}/tasks/{upid}/log` every second
 and streams new lines until the task completes (like `tail -f`).
 
+### Backup (vzdump)
+
+```bash
+proxmox backup list [--node <node>] [--storage <storage>] [--vmid <id>]
+proxmox backup show <volid> [--node <node>] [--vmid <id>]
+proxmox backup create [--node <node>] --vmid <id> --storage <storage> \
+    [--mode snapshot|suspend|stop] [--compress 0|1|zstd] \
+    [--bwlimit <kbps>] [--ionice <0-8>] [--prune-backups <spec>]
+proxmox backup delete <volid> [--node <node>]
+proxmox backup tasks [--node <node>] [--limit <n>]
+proxmox backup defaults [--node <node>] [--storage <storage>]
+```
+
+Use `--all` instead of `--vmid` to back up all guests on a node.
+Backup tasks can be monitored with `proxmox task log <upid> --follow`.
+
+### User
+
+```bash
+proxmox user list
+proxmox user show <userid>
+proxmox user create <userid> [--password <pw>] [--email <email>] \
+    [--firstname <name>] [--lastname <name>] [--group <group>] [--disable]
+proxmox user update <userid> [--password <pw>] [--email <email>] [--enable|--disable]
+proxmox user delete <userid>
+```
+
+### Role
+
+```bash
+proxmox role list
+proxmox role show <roleid>
+proxmox role create <roleid> [--privs <priv1,priv2,...>]
+proxmox role update <roleid> [--privs <priv1,priv2,...>]
+proxmox role delete <roleid>
+```
+
+### ACL
+
+```bash
+proxmox acl list
+proxmox acl show <path>
+proxmox acl add <path> --roles <role> [--users <users>] [--groups <groups>] [--tokens <tokens>]
+proxmox acl delete <path> [--roles <role>] [--users <users>] [--groups <groups>]
+```
+
+ACL write operations require the `Permissions.Modify` privilege
+(Administrator role).
+
 ## Output Formats
 
 ### JSON (default)
