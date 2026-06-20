@@ -28,6 +28,19 @@ def register_storage_parser(subparsers: argparse._SubParsersAction) -> None:
     st_content.add_argument("--node", help="Node name (auto-detected if omitted)")
     st_content.set_defaults(func=_st_content)
 
+    # --- storage upload ---
+    st_upload = st_sub.add_parser("upload", help="Upload a file to storage")
+    st_upload.add_argument("--node", required=True, help="Target node")
+    st_upload.add_argument("--storage", required=True, help="Storage ID (e.g. 'local')")
+    st_upload.add_argument("--file", required=True, help="Path to the local file")
+    st_upload.add_argument(
+        "--content-type",
+        default="iso",
+        choices=["iso", "vztmpl", "import"],
+        help="Content type (default: iso)",
+    )
+    st_upload.set_defaults(func=_st_upload)
+
 
 def _st_list(args: argparse.Namespace, client: ProxmoxClient) -> dict | list:
     if args.node:
@@ -61,3 +74,12 @@ def _st_content(args: argparse.Namespace, client: ProxmoxClient) -> dict | list:
     if not node:
         return {"error": f"Could not determine node for storage '{args.storage_name}'"}
     return client.get(f"/nodes/{node}/storage/{args.storage_name}/content")
+
+
+def _st_upload(args: argparse.Namespace, client: ProxmoxClient) -> dict:
+    return client.upload(
+        node=args.node,
+        storage=args.storage,
+        file_path=args.file,
+        content_type=args.content_type,
+    )

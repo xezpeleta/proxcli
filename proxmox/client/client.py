@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import time
 from typing import Any
 
@@ -92,6 +93,70 @@ class ProxmoxClient:
         self, path: str, *, params: dict[str, Any] | None = None
     ) -> dict[str, Any] | list[Any]:
         return self.request("DELETE", path, params=params)
+
+    def upload(
+        self,
+        node: str,
+        storage: str,
+        file_path: str,
+        *,
+        content_type: str = "iso",
+    ) -> dict[str, Any]:
+        """Upload a file to a storage via multipart/form-data.
+
+        Args:
+            node: Target node name.
+            storage: Storage ID (e.g. 'local').
+            file_path: Path to the local file to upload.
+            content_type: Proxmox content type ('iso', 'vztmpl', 'import').
+        """
+        path = f"/nodes/{node}/storage/{storage}/upload"
+        full_url = f"{self._base_url}/api2/json{path}"
+
+        if self._dry_run:
+            print(f"POST {full_url}")
+            print(f"Headers: {self._auth.get_headers()}")
+            print(f"File: {file_path} (content={content_type})")
+            return {}
+
+        if not os.path.isfile(file_path):
+            raise FileNotFoundError(f"File not found: {file_path}")
+
+        filename = os.path.basename(file_path)
+        file_size = os.path.getsize(file_path)
+
+        self._debug(f"POST {full_url}")
+        self._debug(f"  file: {file_path} ({file_size} bytes)")
+
+        headers = self._auth.get_headers()
+
+        with open(file_path, "rb") as f:
+            try:
+                resp = httpx.post(
+                    full_url,
+                    files={"filename": (filename, f, "application/octet-stream")},
+                    data={"content": content_type},
+                    headers=headers,
+                    timeout=self._timeout,
+                    verify=self._verify_tls,
+                )
+            except httpx.RequestError as exc:
+                msg = str(exc)
+                if "SSL" in msg or "certificate" in msg.lower():
+                    msg += "\nHint: use --insecure to skip TLS verification"
+                raise ProxmoxAPIError(0, {"message": msg}, full_url) from exc
+
+        self._debug(f"  ← {resp.status_code}")
+
+        if not (200 <= resp.status_code < 300):
+            try:
+                body = resp.json()
+            except Exception:
+                body = {"message": resp.text}
+            raise ProxmoxAPIError(resp.status_code, body, full_url)
+
+        envelope = resp.json()
+        return envelope.get("data", envelope)
 
     def set_credentials(self, username: str, password: str) -> None:
         """Store credentials for lazy / auto-refresh authentication."""

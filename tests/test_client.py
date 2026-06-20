@@ -160,3 +160,55 @@ class TestResolveVmid:
         client = ProxmoxClient("https://pve:8006", AuthManager())
         result = resolve_vmid(client, None)
         assert result == 108
+
+
+class TestStorageUpload:
+    def test_upload_success(self, mock_httpx_client, tmp_path):
+        """Upload sends multipart request and returns data."""
+        iso_file = tmp_path / "test.iso"
+        iso_file.write_bytes(b"fake iso content")
+
+        mock_httpx_client.add_response(
+            method="POST",
+            url="https://pve:8006/api2/json/nodes/pve01/storage/local/upload",
+            json={"data": "file test.iso uploaded"},
+        )
+        client = ProxmoxClient("https://pve:8006", AuthManager())
+        result = client.upload("pve01", "local", str(iso_file))
+        assert result == "file test.iso uploaded"
+
+        # Verify the request was multipart
+        requests = mock_httpx_client.get_requests()
+        assert len(requests) == 1
+        assert "multipart/form-data" in requests[0].headers.get("content-type", "")
+
+    def test_upload_dry_run(self, capsys):
+        """Upload in dry-run mode prints request without executing."""
+        client = ProxmoxClient("https://pve:8006", AuthManager(), dry_run=True)
+        result = client.upload("pve01", "local", "/fake/path.iso")
+        assert result == {}
+        captured = capsys.readouterr()
+        assert "POST https://pve:8006/api2/json/nodes/pve01/storage/local/upload" in captured.out
+        assert "/fake/path.iso" in captured.out
+
+    def test_upload_file_not_found(self):
+        """Upload raises FileNotFoundError for missing files."""
+        client = ProxmoxClient("https://pve:8006", AuthManager())
+        with pytest.raises(FileNotFoundError, match="File not found"):
+            client.upload("pve01", "local", "/nonexistent/file.iso")
+
+    def test_upload_error_response(self, mock_httpx_client, tmp_path):
+        """Upload raises ProxmoxAPIError on non-2xx response."""
+        iso_file = tmp_path / "test.iso"
+        iso_file.write_bytes(b"data")
+
+        mock_httpx_client.add_response(
+            method="POST",
+            url="https://pve:8006/api2/json/nodes/pve01/storage/local/upload",
+            status_code=403,
+            json={"message": "permission denied"},
+        )
+        client = ProxmoxClient("https://pve:8006", AuthManager())
+        with pytest.raises(ProxmoxAPIError) as exc_info:
+            client.upload("pve01", "local", str(iso_file))
+        assert exc_info.value.status_code == 403
