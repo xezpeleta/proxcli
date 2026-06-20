@@ -164,6 +164,7 @@ For password auth, use `"auth_method": "password"` with a `"password"` field ins
 
 ```bash
 proxmox auth status  # Show current auth context
+proxmox auth setup   # Create recommended proxcli roles + ACLs (needs Administrator)
 ```
 
 ### Completion

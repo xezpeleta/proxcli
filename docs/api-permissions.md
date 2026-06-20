@@ -79,6 +79,9 @@ pvesh set /access/acl --path /nodes   --roles proxcli-node   --users xezpeleta@p
 That's it.  Four roles, four ACLs, zero privilege creep — each path
 only gets what proxcli actually uses there.
 
+> **One-liner**: `proxmox auth setup` does all of this automatically
+> if your current token has Administrator privileges.
+
 | Path | Role | Why |
 |------|------|-----|
 | `/` | `proxcli-sys` | `cluster status`, `node show`, `task list`, `ceph status`, `cluster log`, `cluster firewall` |
