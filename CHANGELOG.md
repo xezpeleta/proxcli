@@ -25,6 +25,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ``proxmox ceph log [--node] [--limit N]`` (Ceph log entries),
   ``proxmox ceph disks [--node]`` (all physical disks with health,
   wearout, SMART status, OSD mapping).
+- **``--output log`` format**: plain text log lines with timestamps.
+  ``cluster log`` and ``ceph log`` default to this format.  Override with
+  ``--output json``, ``--output table``, or ``--output yaml`.
+- **API coverage doc**: ``docs/api-coverage.md`` tracks all implemented
+  and remaining Proxmox VE REST API endpoints.
 
 ### Changed
 - **ConfigLoader is now read-only**.  ``proxmox auth login`` and
