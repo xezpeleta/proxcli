@@ -47,6 +47,8 @@ def register_auth_parser(subparsers: argparse._SubParsersAction) -> None:
 
     # --- auth status ---
     status = auth_sub.add_parser("status", help="Show current authentication status")
+    status.add_argument("--permissions", "-p", action="store_true",
+                        help="Also show effective permissions of the current token")
     status.set_defaults(func=_auth_status)
 
     # --- auth setup ---
@@ -62,7 +64,7 @@ def _auth_status(args: argparse.Namespace, client: ProxmoxClient | None = None) 
         return {"status": "not authenticated"}
 
     found_path = loader.find_file()
-    return {
+    result: dict = {
         "status": "authenticated",
         "url": creds.url,
         "username": creds.username,
@@ -70,6 +72,12 @@ def _auth_status(args: argparse.Namespace, client: ProxmoxClient | None = None) 
         "verify_tls": creds.verify_tls,
         "config_file": str(found_path) if found_path else "unknown",
     }
+
+    if client is not None and args.permissions:
+        perms = client.get("/access/permissions")
+        result["permissions"] = perms
+
+    return result
 
 
 def _auth_setup(args: argparse.Namespace, client: ProxmoxClient) -> dict:

@@ -294,8 +294,12 @@ def main(argv: list[str] | None = None) -> None:
         return
 
     try:
-        # auth status and completion don't need a client
-        if (args.resource == "auth" and args.action == "status") or args.resource == "completion":
+        # auth status (without --permissions) and completion don't need a client
+        if args.resource == "completion" or (
+            args.resource == "auth"
+            and args.action == "status"
+            and not getattr(args, "permissions", False)
+        ):
             if hasattr(args, "func"):
                 result = args.func(args, None)
                 if result is not None:
@@ -304,7 +308,8 @@ def main(argv: list[str] | None = None) -> None:
                         print(result)
                     else:
                         output = format_output(
-                            result, _resolve_output(args), columns=getattr(args, "columns", None)
+                            result, _resolve_output(args),
+                            columns=getattr(args, "columns", None),
                         )
                         print(output)
             return
