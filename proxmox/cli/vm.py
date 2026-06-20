@@ -52,6 +52,8 @@ def register_vm_parser(subparsers: argparse._SubParsersAction) -> None:
     vm_create.add_argument("--nameserver", default=None, help="Cloud-init DNS server")
     vm_create.add_argument("--searchdomain", default=None, help="Cloud-init DNS search domain")
     vm_create.add_argument("--cicustom", default=None, help="Cloud-init custom config (user=...,vendor=...)")
+    vm_create.add_argument("--import-from", default=None, dest="import_from",
+                           help="Import disk from existing volume (e.g. local:import/deb12.qcow2)")
     vm_create.set_defaults(func=_vm_create)
 
     # --- vm start ---
@@ -329,8 +331,21 @@ def _vm_create(args: argparse.Namespace, client: ProxmoxClient) -> dict:
         else:
             disk_raw = args.disk
         data["scsi0"] = disk_raw.replace("=", "%3D").replace(":", "%3A").replace(",", "%2C")
+    elif args.import_from:
+        # Import from existing volume: storage_id=0,import-from=<volid>
+        parts = args.import_from.split(":", 1)
+        if len(parts) == 2:
+            src_storage, src_file = parts
+        else:
+            return {"error": f"Invalid import-from format: {args.import_from}. Use <storage>:<path>"}
+        # Build: dst_storage:0,import-from=src_storage:path
+        target_storage = args.storage or "rbd_ssd"
+        import_raw = f"{target_storage}:0,import-from={args.import_from}"
+        data["scsi0"] = import_raw.replace("=", "%3D").replace(":", "%3A").replace(",", "%2C")
 
     # Cloud-init
+    cloudinit_used = bool(args.citype or args.ciuser or args.cipassword or args.sshkeys
+                        or args.nameserver or args.searchdomain or args.cicustom)
     if args.citype:
         data["citype"] = args.citype
     if args.ciuser:
@@ -353,6 +368,9 @@ def _vm_create(args: argparse.Namespace, client: ProxmoxClient) -> dict:
         # URL-encode the SSH keys for form body
         # Replace newlines with %0A
         data["sshkeys"] = sshkeys_value.replace("\n", "%0A").replace("\r", "%0D").replace("=", "%3D").replace(",", "%2C").replace(":", "%3A")
+    # Add cloud-init drive if cloud-init is being used and no cdrom is set
+    if cloudinit_used and not args.cdrom:
+        data["ide2"] = "local:cloudinit,media=cdrom"
 
     # Build form-encoded body manually — httpx's data= would double-encode %
     from urllib.parse import urlencode
@@ -444,14 +462,25 @@ def _vm_agent_interfaces(args: argparse.Namespace, client: ProxmoxClient) -> dic
 def _vm_cloudinit_generate(args: argparse.Namespace, client: ProxmoxClient) -> dict:
     """Regenerate the cloud-init ISO from the VM's current cloud-init config.
 
-    After setting citype, ciuser, sshkeys, etc. on a VM, call this to
-    rebuild the cloud-init drive so changes take effect on next boot.
+    In Proxmox VE 9, cloud-init ISOs are regenerated automatically when
+    config changes. This triggers regeneration by re-setting the citype.
     """
     node = _resolve_node(client, args.node, args.vmid)
     if not node:
         return {"error": f"VM {args.vmid} not found"}
-    result = client.post(f"/nodes/{node}/qemu/{args.vmid}/cloudinit")
-    return result if isinstance(result, dict) else {"data": result}
+    # Proxmox VE 9 regenerates cloud-init on config change.
+    # Re-submit the current citype to trigger regeneration.
+    config = client.get(f"/nodes/{node}/qemu/{args.vmid}/config")
+    if not isinstance(config, dict):
+        return {"error": f"Could not read config for VM {args.vmid}"}
+    citype = config.get("citype")
+    if not citype:
+        return {"error": f"VM {args.vmid} has no cloud-init configured (missing citype)"}
+    result = client.put(
+        f"/nodes/{node}/qemu/{args.vmid}/config",
+        data={"citype": citype},
+    )
+    return {"data": result} if isinstance(result, (str, type(None))) or not isinstance(result, dict) else result
 
 
 # ---------------------------------------------------------------------------
