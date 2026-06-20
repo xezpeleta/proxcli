@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-06-20
+
+### Added
+- Cluster firewall management: options, enable/disable, policy, rules (CRUD), aliases, ipsets (with CIDR management), refs.
+- Node firewall management: options, enable/disable, policy, rules (CRUD), refs.
+- VM firewall management: options, enable/disable, policy, rules (CRUD), refs.
+- Shared `firewall_helpers.py` for consistent rule argument building across all levels.
+- CI `publish` job: auto-publishes to PyPI on push to main (uses `PYPI_TOKEN` repo secret with `environment: pypi`).
+- `AGENTS.md` with CLI convention and contribution guidelines.
+
+### Changed
+- Removed `.env` file with PyPI token; now uses GitHub Actions secrets.
+- Firewall subcommands refactored to consistent `<resource> <action> <subresource> [subaction]` pattern.
+
 ## [0.2.1] - 2026-06-20
 
 ### Fixed
@@ -41,6 +55,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CSRF ticket auto-refresh on 401.
 - AI-agent-friendly: default JSON output, strict exit codes, `--dry-run` mode.
 
+[0.3.0]: https://github.com/xezpeleta/proxcli/releases/tag/v0.3.0
 [0.2.1]: https://github.com/xezpeleta/proxcli/releases/tag/v0.2.1
 [0.2.0]: https://github.com/xezpeleta/proxcli/releases/tag/v0.2.0
 [0.1.1]: https://github.com/xezpeleta/proxcli/releases/tag/v0.1.1
