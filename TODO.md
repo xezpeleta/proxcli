@@ -50,7 +50,7 @@ Completed items are marked with a check. Implementation notes are preserved for 
 - [ ] **Batch / bulk operations**
   - `proxmox vm start --all-on-node pve01` (start all VMs on a node). `proxmox vm snapshot --vmid 100,101,102` (apply to multiple IDs).
 
-- [ ] **Config file templating**
+- [x] **Config file templating**
   - ``vm create --file spec.yaml`` for declarative VM specs.  File format
     mirrors the native Proxmox VM config (flat key-value: ``name``,
     ``memory``, ``cores``, ``net0``, ``scsi0``, ``ciuser``, etc.).

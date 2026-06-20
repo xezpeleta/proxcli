@@ -7,13 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-- **`--columns` global flag**: select which columns appear in table output.
-  Example: ``proxmox --output table --columns vmid,name,status vm list``.
-- **Colorized table output**: status/state values are styled with colors
-  (green for running/active/ok, red for stopped/error, yellow for paused).
-
-## [Unreleased]
+## [0.11.0] - 2026-06-20
 
 ### Added
 - **VM config file (export/import)**: ``vm create --file spec.yaml`` reads
@@ -23,10 +17,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ``--node``.  ``vm config <vmid>`` exports a clean VM config (strips
   internal fields like ``digest``, ``vmgenid``), ready for ``--file``.
   Enable export → edit → recreate workflow.
-- **`--columns` global flag**: select which columns appear in table output.
-  Example: ``proxmox --output table --columns vmid,name,status vm list``.
-- **Colorized table output**: status/state values are styled with colors
-  (green for running/active/ok, red for stopped/error, yellow for paused).
 
 ## [0.10.0] - 2026-06-20
 
