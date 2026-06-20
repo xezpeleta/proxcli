@@ -20,6 +20,7 @@ def register_ceph_parser(subparsers: argparse._SubParsersAction) -> None:
     log = ceph_sub.add_parser("log", help="Show recent Ceph log entries")
     log.add_argument("--node", help="Show logs for a specific node (default: all nodes)")
     log.add_argument("--limit", type=int, default=50, help="Number of log entries (default: 50)")
+    log.add_argument("--follow", "-f", action="store_true", help="Follow log output")
     log.set_defaults(func=_ceph_log, output_format="log")
 
     # --- ceph osd ---
@@ -79,8 +80,18 @@ def _ceph_status(args: argparse.Namespace, client: ProxmoxClient) -> dict:
     }
 
 
-def _ceph_log(args: argparse.Namespace, client: ProxmoxClient) -> list:
+def _ceph_log(args: argparse.Namespace, client: ProxmoxClient) -> list | None:
     """Fetch Ceph log entries."""
+    if args.follow:
+        # Follow only works with --node for ceph log (per-node endpoint)
+        if not args.node:
+            return {"error": "--follow requires --node for Ceph logs"}
+        client.stream_log(
+            f"/nodes/{args.node}/ceph/log", follow=True,
+            params={"limit": args.limit},
+        )
+        return None
+
     if args.node:
         node_list = [args.node]
     else:

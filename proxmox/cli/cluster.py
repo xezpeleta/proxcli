@@ -20,6 +20,7 @@ def register_cluster_parser(subparsers: argparse._SubParsersAction) -> None:
     # --- cluster log ---
     cl_log = cl_sub.add_parser("log", help="Show cluster log")
     cl_log.add_argument("--limit", type=int, default=50, help="Number of entries (default: 50)")
+    cl_log.add_argument("--follow", "-f", action="store_true", help="Follow log output")
     cl_log.set_defaults(func=_cl_log, output_format="log")
 
     # --- cluster options ---
@@ -142,7 +143,10 @@ def _cl_status(_args: argparse.Namespace, client: ProxmoxClient) -> dict | list:
     return client.get("/cluster/status")
 
 
-def _cl_log(args: argparse.Namespace, client: ProxmoxClient) -> list:
+def _cl_log(args: argparse.Namespace, client: ProxmoxClient) -> list | None:
+    if args.follow:
+        client.stream_log("/cluster/log", follow=True, params={"max": args.limit})
+        return None
     data = client.get("/cluster/log", params={"max": args.limit})
     return list(reversed(data)) if isinstance(data, list) else data
 

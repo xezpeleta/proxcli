@@ -4,12 +4,36 @@ from __future__ import annotations
 
 import os
 import time
+from datetime import datetime, timezone
 from typing import Any
 
 import httpx
 
 from proxmox.client.auth import AuthManager
 from proxmox.client.exceptions import AuthError, ProxmoxAPIError
+
+
+def _log_line(entry: dict) -> str:
+    """Format a log entry dict as a single text line."""
+    ts = entry.get("time", "")
+    if isinstance(ts, (int, float)):
+        try:
+            ts = datetime.fromtimestamp(ts, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
+        except (OSError, ValueError):
+            ts = str(ts)
+    elif not isinstance(ts, str):
+        ts = str(ts)
+
+    parts = [ts]
+    tag = entry.get("tag", "")
+    node = entry.get("node", "")
+    if tag:
+        parts.append(f"[{tag}]")
+    if node:
+        parts.append(f"[{node}]")
+    msg = entry.get("msg", "")
+    parts.append(msg)
+    return " ".join(parts)
 
 
 class ProxmoxClient:
@@ -367,3 +391,57 @@ class ProxmoxClient:
         if len(parts) >= 2:
             return parts[1]
         return None
+
+    def stream_log(
+        self,
+        path: str,
+        *,
+        follow: bool = False,
+        params: dict | None = None,
+    ) -> None:
+        """Stream log entries from a polling endpoint (cluster/log, node/ceph/log).
+
+        Args:
+            path: API path to poll (e.g., '/cluster/log').
+            follow: If True, keep polling for new entries (Ctrl+C to stop).
+            params: Optional query params (e.g., {'max': 100}).
+        """
+        base_params = dict(params) if params else {}
+
+        if self._dry_run:
+            self._print_dry_run("GET", f"{self._base_url}/api2/json{path}", base_params)
+            if follow:
+                print("[dry-run] --follow would poll until Ctrl+C")
+            return
+
+        seen: set[str] = set()
+
+        while True:
+            try:
+                data = self.request("GET", path, params=base_params)
+            except ProxmoxAPIError:
+                if not follow:
+                    break
+                time.sleep(1)
+                continue
+
+            if not isinstance(data, list):
+                break
+
+            new_entries = []
+            for entry in data:
+                eid = entry.get("id", "")
+                ekey = f"{entry.get('time', '')}:{eid}"
+                if ekey not in seen:
+                    seen.add(ekey)
+                    new_entries.append(entry)
+
+            # Print new entries oldest-first
+            for entry in reversed(new_entries):
+                line = _log_line(entry)
+                print(line, flush=True)
+
+            if not follow:
+                break
+
+            time.sleep(1)
