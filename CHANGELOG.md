@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-06-21
+
+### Added
+- **``--output log`` format**: plain-text log lines with timestamps.
+  ``cluster log`` and ``ceph log`` default to this format.
+- **``--follow`` / ``-f``** for ``cluster log`` and ``ceph log``:
+  polls every second and prints new entries until Ctrl+C.
+- **``proxmox auth setup``**: creates the four recommended
+  ``proxcli-*`` roles and ACLs in one command (requires Administrator).
+- **``proxmox auth check``**: live permission test — hits each proxcli
+  endpoint and reports PASS/FAIL in a table.  39 checks across cluster,
+  storage, VMs, snapshots, backups, containers, firewall, pools, and
+  admin operations.
+- **``proxmox auth status --permissions`` / ``-p``**: fetches effective
+  permissions from the API.
+
+### Changed
+- **Cluster/ceph log output** is now oldest-first (reversed from API order).
+- ``--help`` no longer triggers misplaced-global-flag hint.
+- ``docs/api-permissions.md`` restructured around four path-scoped roles
+  and a 3-step quickstart.
+
+### Fixed
+- Ctrl+C / broken pipe in ``--follow`` mode exits cleanly (no error).
+- ``auth check`` defaults to table output.
+
 ## [0.12.0] - 2026-06-20
 
 ### Added

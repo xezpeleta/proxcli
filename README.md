@@ -163,8 +163,10 @@ For password auth, use `"auth_method": "password"` with a `"password"` field ins
 ### Auth
 
 ```bash
-proxmox auth status  # Show current auth context
-proxmox auth setup   # Create recommended proxcli roles + ACLs (needs Administrator)
+proxmox auth status            # Show current auth context
+proxmox auth status --permissions  # + effective permissions from API
+proxmox auth setup             # Create recommended roles + ACLs (needs Administrator)
+proxmox auth check             # Live permission test table (39 checks)
 ```
 
 ### Completion
@@ -392,8 +394,9 @@ proxmox task show <upid>
 proxmox task log <upid> [--follow]
 ```
 
-`proxmox task log --follow` polls `/nodes/{node}/tasks/{upid}/log` every second
+`proxmox task log --follow` polls the log endpoint every second
 and streams new lines until the task completes (like `tail -f`).
+`cluster log --follow` and `ceph log --follow <node>` work the same way.
 
 ### Backup (vzdump)
 

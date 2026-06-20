@@ -147,7 +147,7 @@ def register_auth_parser(subparsers: argparse._SubParsersAction) -> None:
 
     # --- auth check ---
     check = auth_sub.add_parser("check", help="Test each permission endpoint live")
-    check.set_defaults(func=_auth_check)
+    check.set_defaults(func=_auth_check, output_format="table")
 
 
 def _auth_status(args: argparse.Namespace, client: ProxmoxClient | None = None) -> dict:
