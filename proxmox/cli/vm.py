@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 
+from proxmox.cli.firewall_helpers import add_firewall_rule_args, build_rule_data
 from proxmox.client.client import ProxmoxClient
 from proxmox.utils.helpers import resolve_vmid, vmid_type
 
@@ -73,6 +74,75 @@ def register_vm_parser(subparsers: argparse._SubParsersAction) -> None:
     vm_delete.add_argument("--force", action="store_true", help="Force removal")
     vm_delete.add_argument("--purge", action="store_true", help="Purge VM from all configurations")
     vm_delete.set_defaults(func=_vm_delete)
+
+    # --- firewall ---
+    fw_parser = vm_sub.add_parser("firewall", help="Manage VM firewall")
+    fw_sub = fw_parser.add_subparsers(dest="fw_action", title="firewall actions", required=True)
+
+    fw_opts = fw_sub.add_parser("options", help="Show VM firewall options")
+    fw_opts.add_argument("vmid", type=vmid_type, help="VM ID")
+    fw_opts.add_argument("--node", help="Node name (auto-detected if omitted)")
+    fw_opts.set_defaults(func=_vm_fw_options)
+
+    fw_enable = fw_sub.add_parser("enable", help="Enable VM firewall")
+    fw_enable.add_argument("vmid", type=vmid_type, help="VM ID")
+    fw_enable.add_argument("--node", help="Node name (auto-detected if omitted)")
+    fw_enable.set_defaults(func=_vm_fw_enable)
+
+    fw_disable = fw_sub.add_parser("disable", help="Disable VM firewall")
+    fw_disable.add_argument("vmid", type=vmid_type, help="VM ID")
+    fw_disable.add_argument("--node", help="Node name (auto-detected if omitted)")
+    fw_disable.set_defaults(func=_vm_fw_disable)
+
+    fw_policy = fw_sub.add_parser("policy", help="Set default input/output policy for VM")
+    fw_policy.add_argument("vmid", type=vmid_type, help="VM ID")
+    fw_policy.add_argument("--node", help="Node name (auto-detected if omitted)")
+    fw_policy.add_argument("--in-policy", choices=["ACCEPT", "DENY", "REJECT"], default=None,
+                           help="Default input policy")
+    fw_policy.add_argument("--out-policy", choices=["ACCEPT", "DENY", "REJECT"], default=None,
+                           help="Default output policy")
+    fw_policy.set_defaults(func=_vm_fw_policy)
+
+    fw_rules = fw_sub.add_parser("rules", help="List VM firewall rules")
+    fw_rules.add_argument("vmid", type=vmid_type, help="VM ID")
+    fw_rules.add_argument("--node", help="Node name (auto-detected if omitted)")
+    fw_rules.set_defaults(func=_vm_fw_rules)
+
+    fw_rule_add = fw_sub.add_parser("add-rule", help="Add a VM firewall rule")
+    fw_rule_add.add_argument("vmid", type=vmid_type, help="VM ID")
+    fw_rule_add.add_argument("--node", help="Node name (auto-detected if omitted)")
+    add_firewall_rule_args(fw_rule_add)
+    fw_rule_add.set_defaults(func=_vm_fw_rule_add)
+
+    fw_rule_show = fw_sub.add_parser("show-rule", help="Show a VM firewall rule")
+    fw_rule_show.add_argument("vmid", type=vmid_type, help="VM ID")
+    fw_rule_show.add_argument("--node", help="Node name (auto-detected if omitted)")
+    fw_rule_show.add_argument("pos", type=int, help="Rule position")
+    fw_rule_show.set_defaults(func=_vm_fw_rule_show)
+
+    fw_rule_upd = fw_sub.add_parser("update-rule", help="Update a VM firewall rule")
+    fw_rule_upd.add_argument("vmid", type=vmid_type, help="VM ID")
+    fw_rule_upd.add_argument("--node", help="Node name (auto-detected if omitted)")
+    fw_rule_upd.add_argument("pos", type=int, help="Rule position")
+    add_firewall_rule_args(fw_rule_upd)
+    for action in fw_rule_upd._actions:
+        if action.dest == "action":
+            action.required = False
+            action.default = None
+    fw_rule_upd.set_defaults(func=_vm_fw_rule_upd)
+
+    fw_rule_del = fw_sub.add_parser("delete-rule", help="Delete a VM firewall rule")
+    fw_rule_del.add_argument("vmid", type=vmid_type, help="VM ID")
+    fw_rule_del.add_argument("--node", help="Node name (auto-detected if omitted)")
+    fw_rule_del.add_argument("pos", type=int, help="Rule position")
+    fw_rule_del.set_defaults(func=_vm_fw_rule_del)
+
+    fw_refs = fw_sub.add_parser("refs", help="List VM firewall references")
+    fw_refs.add_argument("vmid", type=vmid_type, help="VM ID")
+    fw_refs.add_argument("--node", help="Node name (auto-detected if omitted)")
+    fw_refs.add_argument("--type", default=None, choices=["alias", "ipset", "group"],
+                         help="Filter by reference type")
+    fw_refs.set_defaults(func=_vm_fw_refs)
 
 
 # ---------------------------------------------------------------------------
@@ -209,3 +279,87 @@ def _vm_delete(args: argparse.Namespace, client: ProxmoxClient) -> dict:
         params["purge"] = 1
     result = client.delete(f"/nodes/{node}/qemu/{args.vmid}", params=params or None)
     return result if isinstance(result, dict) else {"data": result}
+
+
+# ---------------------------------------------------------------------------
+# VM firewall handlers
+# ---------------------------------------------------------------------------
+
+def _vm_fw_options(args: argparse.Namespace, client: ProxmoxClient) -> dict:
+    node = _resolve_node(client, args.node, args.vmid)
+    if not node:
+        return {"error": f"VM {args.vmid} not found"}
+    return client.get(f"/nodes/{node}/qemu/{args.vmid}/firewall/options")
+
+
+def _vm_fw_enable(args: argparse.Namespace, client: ProxmoxClient) -> dict:
+    node = _resolve_node(client, args.node, args.vmid)
+    if not node:
+        return {"error": f"VM {args.vmid} not found"}
+    return client.put(f"/nodes/{node}/qemu/{args.vmid}/firewall/options", data={"enable": 1})
+
+
+def _vm_fw_disable(args: argparse.Namespace, client: ProxmoxClient) -> dict:
+    node = _resolve_node(client, args.node, args.vmid)
+    if not node:
+        return {"error": f"VM {args.vmid} not found"}
+    return client.put(f"/nodes/{node}/qemu/{args.vmid}/firewall/options", data={"enable": 0})
+
+
+def _vm_fw_policy(args: argparse.Namespace, client: ProxmoxClient) -> dict:
+    node = _resolve_node(client, args.node, args.vmid)
+    if not node:
+        return {"error": f"VM {args.vmid} not found"}
+    data: dict = {}
+    if args.in_policy:
+        data["policy_in"] = args.in_policy
+    if args.out_policy:
+        data["policy_out"] = args.out_policy
+    if not data:
+        return {"error": "No policy specified. Use --in-policy or --out-policy"}
+    return client.put(f"/nodes/{node}/qemu/{args.vmid}/firewall/options", data=data)
+
+
+def _vm_fw_rules(args: argparse.Namespace, client: ProxmoxClient) -> dict | list:
+    node = _resolve_node(client, args.node, args.vmid)
+    if not node:
+        return {"error": f"VM {args.vmid} not found"}
+    return client.get(f"/nodes/{node}/qemu/{args.vmid}/firewall/rules")
+
+
+def _vm_fw_rule_add(args: argparse.Namespace, client: ProxmoxClient) -> dict:
+    node = _resolve_node(client, args.node, args.vmid)
+    if not node:
+        return {"error": f"VM {args.vmid} not found"}
+    return client.post(f"/nodes/{node}/qemu/{args.vmid}/firewall/rules",
+                       data=build_rule_data(args))
+
+
+def _vm_fw_rule_show(args: argparse.Namespace, client: ProxmoxClient) -> dict:
+    node = _resolve_node(client, args.node, args.vmid)
+    if not node:
+        return {"error": f"VM {args.vmid} not found"}
+    return client.get(f"/nodes/{node}/qemu/{args.vmid}/firewall/rules/{args.pos}")
+
+
+def _vm_fw_rule_upd(args: argparse.Namespace, client: ProxmoxClient) -> dict:
+    node = _resolve_node(client, args.node, args.vmid)
+    if not node:
+        return {"error": f"VM {args.vmid} not found"}
+    data = {k: v for k, v in build_rule_data(args).items() if v is not None and v != 0}
+    return client.put(f"/nodes/{node}/qemu/{args.vmid}/firewall/rules/{args.pos}", data=data)
+
+
+def _vm_fw_rule_del(args: argparse.Namespace, client: ProxmoxClient) -> dict:
+    node = _resolve_node(client, args.node, args.vmid)
+    if not node:
+        return {"error": f"VM {args.vmid} not found"}
+    return client.delete(f"/nodes/{node}/qemu/{args.vmid}/firewall/rules/{args.pos}")
+
+
+def _vm_fw_refs(args: argparse.Namespace, client: ProxmoxClient) -> dict | list:
+    node = _resolve_node(client, args.node, args.vmid)
+    if not node:
+        return {"error": f"VM {args.vmid} not found"}
+    params: dict | None = {"type": args.type} if args.type else None
+    return client.get(f"/nodes/{node}/qemu/{args.vmid}/firewall/refs", params=params)
