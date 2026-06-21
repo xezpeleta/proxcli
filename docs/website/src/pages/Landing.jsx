@@ -37,9 +37,9 @@ function Hero() {
           <p className="text-lg md:text-xl text-muted max-w-2xl mb-8 leading-relaxed">
             Automate every corner of your Proxmox cluster from the terminal.
             A sandbox your AI agent can trust, and production deployments
-            you can rely on — all from a single binary with
-            <code className="text-tertiary font-mono mx-1">--dry-run</code>
-            confidence.
+            you can rely on.
+            <code className="text-tertiary font-mono mx-1">uv tool install proxcli</code>
+            and you&apos;re ready to go.
           </p>
           <div className="flex flex-wrap gap-4">
             <a 
