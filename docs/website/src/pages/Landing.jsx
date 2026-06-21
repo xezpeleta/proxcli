@@ -35,10 +35,11 @@ function Hero() {
             <SplitFlapAgent />
           </div>
           <p className="text-lg md:text-xl text-muted max-w-2xl mb-8 leading-relaxed">
-            A single binary to manage every aspect of your Proxmox VE cluster.
-            Beautiful tables for humans, structured JSON for automation, and 
+            Automate every corner of your Proxmox cluster from the terminal.
+            A sandbox your AI agent can trust, and production deployments
+            you can rely on — all from a single binary with
             <code className="text-tertiary font-mono mx-1">--dry-run</code>
-            for confidence.
+            confidence.
           </p>
           <div className="flex flex-wrap gap-4">
             <a 
