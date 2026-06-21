@@ -14,6 +14,7 @@ function copyDocsPlugin() {
       const outDocsDir = join(__dirname, '..', 'docs')
       mkdirSync(outDocsDir, { recursive: true })
       const files = [
+        'quickstart.md',
         'cloud-init.md',
         'api-permissions.md',
         'api-coverage.md',
