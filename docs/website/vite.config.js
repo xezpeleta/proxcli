@@ -4,9 +4,9 @@ import tailwindcss from '@tailwindcss/vite'
 import { cpSync, mkdirSync, readFileSync, existsSync } from 'fs'
 import { join, dirname } from 'path'
 
-// Copy markdown docs from parent docs/ into output docs/ after build
+// Copy markdown docs from public/docs/ into output docs/ after build
 function copyDocsPlugin() {
-  const docsDir = join(__dirname, '../..')
+  const publicDocsDir = join(__dirname, 'public', 'docs')
 
   return {
     name: 'copy-docs',
@@ -22,7 +22,7 @@ function copyDocsPlugin() {
         'production-automation.md',
       ]
       for (const f of files) {
-        const src = join(docsDir, f)
+        const src = join(publicDocsDir, f)
         if (existsSync(src)) {
           cpSync(src, join(outDocsDir, f))
         }
