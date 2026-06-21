@@ -24,3 +24,8 @@ coverage.xml
 
 # Rust cache
 .ruff_cache/
+
+# Website build artifacts (node_modules are in docs/website/)
+docs/website/node_modules/
+docs/website/remotion-demos/node_modules/
+docs/website/site/

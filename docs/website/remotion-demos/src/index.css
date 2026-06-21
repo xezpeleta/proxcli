@@ -1,0 +1,16 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #0F172A;
+  --color-tertiary: #3B82F6;
+  --color-code-bg: #1E293B;
+  --color-code-fg: #E2E8F0;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+}
+
+/* Prevent default white background from showing during render */
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  background: #1E293B;
+}

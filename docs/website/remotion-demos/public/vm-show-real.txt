@@ -1,0 +1,11 @@
+┏━━━━━━━━━━━━━┳━━━━━━━━━━━━┓
+┃ Key         ┃ Value      ┃
+┡━━━━━━━━━━━━━╇━━━━━━━━━━━━┩
+│ vmid        │ 100        │
+│ name        │ webserver  │
+│ status      │ running    │
+│ node        │ pve01      │
+│ memory (MB) │ 4096       │
+│ cores       │ 2          │
+│ uptime      │ 15d 3h 12m │
+└─────────────┴────────────┘
