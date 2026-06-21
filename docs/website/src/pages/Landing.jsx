@@ -116,7 +116,7 @@ function Card({ icon: Icon, title, children }) {
         </div>
       )}
       <h3 className="text-lg font-semibold text-primary mb-2">{title}</h3>
-      <p className="text-secondary leading-relaxed">{children}</p>
+      <div className="text-secondary leading-relaxed">{children}</div>
     </div>
   )
 }
@@ -126,7 +126,7 @@ function Features() {
     {
       icon: Terminal,
       title: 'Familiar CLI Pattern',
-      description: 'proxmox vm list, proxmox vm start 100 — a discoverable <resource> <action> interface that feels like docker or kubectl.'
+      description: <><code className="font-mono text-tertiary bg-blue-50 px-1 rounded">proxmox vm list</code>, <code className="font-mono text-tertiary bg-blue-50 px-1 rounded">proxmox vm start 100</code> — a discoverable <code className="font-mono text-tertiary bg-blue-50 px-1 rounded">&lt;resource&gt; &lt;action&gt;</code> interface that feels like docker or kubectl.</>
     },
     {
       icon: Shield,
@@ -141,7 +141,7 @@ function Features() {
     {
       icon: Bot,
       title: 'AI Agent Native',
-      description: 'Default JSON output, strict exit codes, and --dry-run mode make it ideal for LLM-powered infrastructure management.'
+      description: <>Default JSON output, strict exit codes, and <code className="font-mono text-tertiary bg-blue-50 px-1 rounded">--dry-run</code> mode make it ideal for LLM-powered infrastructure management.</>
     },
     {
       icon: FileCode,
@@ -176,7 +176,7 @@ function Features() {
     {
       icon: Clock,
       title: 'Task Monitoring',
-      description: 'List tasks, show details, and stream logs in real-time with --follow, just like tail -f.'
+      description: <>List tasks, show details, and stream logs in real-time with <code className="font-mono text-tertiary bg-blue-50 px-1 rounded">--follow</code>, just like <code className="font-mono text-tertiary bg-blue-50 px-1 rounded">tail -f</code>.</>
     },
     {
       icon: Workflow,
