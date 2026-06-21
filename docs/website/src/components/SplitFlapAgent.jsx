@@ -238,7 +238,7 @@ export default function SplitFlapAgent() {
 
   return (
     <div
-      className="relative h-full flex items-center"
+      className="relative h-full flex items-center overflow-hidden"
       style={{
         transform: `translateX(${glitchX}px)`,
         transition: 'transform 0.06s',
@@ -274,17 +274,19 @@ export default function SplitFlapAgent() {
         visibility: fadeHuman < 0.02 ? 'hidden' : 'visible',
       }}>
         <span
-          className="font-serif italic text-tertiary inline-flex items-baseline gap-2"
+          className="font-serif italic inline-flex items-baseline gap-2"
           style={{
+            color: '#60A5FA',
             fontSize: 'clamp(2rem, 8vw, 5rem)',
             fontWeight: 400,
             letterSpacing: '0.02em',
+            textShadow: '0 0 40px rgba(96,165,250,0.3), 0 0 80px rgba(96,165,250,0.1)',
           }}
         >
           <span>{isHuman ? humanText : 'HUMANS'}</span>
           <span
             className="text-tertiary/60"
-            style={{ fontSize: 'clamp(1.5rem, 6vw, 3.5rem)', fontWeight: 300 }}
+            style={{ fontSize: 'clamp(1.5rem, 6vw, 3.5rem)', fontWeight: 300, color: '#60A5FA', opacity: 0.6 }}
           >
             &
           </span>
@@ -296,7 +298,7 @@ export default function SplitFlapAgent() {
         className="font-mono leading-none whitespace-pre select-none"
         style={{
           color: '#E6C34A',
-          fontSize: 'clamp(9px, 2.2vw, 15px)',
+          fontSize: 'clamp(6px, 2vw, 15px)',
           opacity: fadeAscii,
           transition: 'opacity 0.15s',
           position: isHuman ? 'absolute' : 'static',
@@ -313,9 +315,9 @@ export default function SplitFlapAgent() {
         ))}
       </pre>
 
-      {/* Robot — only visible in agent phase */}
+      {/* Robot — only visible on md+ screens */}
       <pre
-        className="font-mono leading-none whitespace-pre select-none"
+        className="hidden md:block font-mono leading-none whitespace-pre select-none"
         style={{
           color: '#E6C34A',
           fontSize: 'clamp(2.5px, 0.55vw, 4.5px)',
