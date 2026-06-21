@@ -28,4 +28,5 @@ coverage.xml
 # Website build artifacts (node_modules are in docs/website/)
 docs/website/node_modules/
 docs/website/remotion-demos/node_modules/
-docs/website/site/
+# Built docs subdir (markdown copies for the docs site)
+docs/docs/
