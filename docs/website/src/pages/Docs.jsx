@@ -196,7 +196,7 @@ function MarkdownDocPage({ title, file, icon: Icon, defaultLanguage }) {
   const [error, setError] = useState(null)
 
   useEffect(() => {
-    fetch(`${import.meta.env.BASE_URL}docs/${file}`)
+    fetch(`${import.meta.env.BASE_URL}${file}`)
       .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.text() })
       .then(text => {
         // Strip the first h1 heading since the component provides its own title
