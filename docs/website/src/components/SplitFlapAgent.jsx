@@ -74,6 +74,29 @@ function gridForWord(word) {
   return rows
 }
 
+// Render an ASCII grid as pixel-perfect colored divs (no font dependency)
+function AsciiText({ grid, color, style }) {
+  return (
+    <div style={style}>
+      {grid.map((row, ri) => (
+        <div key={ri} style={{ display: 'flex', lineHeight: 1 }}>
+          {[...row].map((ch, ci) => {
+            if (ch === '█') {
+              const sizeCls = "w-[clamp(4px,1.5vw,10px)] h-[clamp(4px,1.5vw,10px)]"
+              return <div key={ci} style={{ width: 'clamp(4px,1.5vw,10px)', height: 'clamp(4px,1.5vw,10px)', background: color, flexShrink: 0 }} />
+            }
+            if (ch === ' ') return <div key={ci} style={{ width: 'clamp(4px,1.5vw,10px)', height: 'clamp(4px,1.5vw,10px)', flexShrink: 0 }} />
+            // for any other char (shouldn't happen), render empty space
+            return <div key={ci} style={{ width: 'clamp(4px,1.5vw,10px)', height: 'clamp(4px,1.5vw,10px)', flexShrink: 0 }} />
+          })}
+          {/* Row gap */}
+          <div style={{ width: 'clamp(4px,1.5vw,10px)', height: 'clamp(4px,1.5vw,10px)', flexShrink: 0 }} />
+        </div>
+      ))}
+    </div>
+  )
+}
+
 const DEBRIS_CHARS = '01!?#$%&@<>{}[]/\\|*^~'
 
 const ROBOT_HEAD = [
@@ -293,27 +316,21 @@ export default function SplitFlapAgent() {
         </span>
       </div>
 
-      {/* AGENT: big ASCII + robot head */}
-      <pre
-        className="font-mono leading-none whitespace-pre select-none"
+      {/* AGENT: pixel-perfect block letters */}
+      <div
         style={{
-          color: '#E6C34A',
-          fontSize: 'clamp(6px, 2vw, 15px)',
           opacity: fadeAscii,
           transition: 'opacity 0.15s',
           position: isHuman ? 'absolute' : 'static',
           inset: 0,
           display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'center',
+          alignItems: 'center',
+          justifyContent: 'flex-start',
           visibility: fadeAscii < 0.02 ? 'hidden' : 'visible',
-          margin: 0,
         }}
       >
-        {agentGrid.current.map((row, i) => (
-          <div key={i}>{row}</div>
-        ))}
-      </pre>
+        <AsciiText grid={agentGrid.current} color="#E6C34A" />
+      </div>
 
       {/* Robot — only visible on md+ screens */}
       <pre
