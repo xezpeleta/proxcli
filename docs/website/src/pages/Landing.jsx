@@ -7,6 +7,7 @@ import {
   Keyboard, Eye, Clock, Cloud, Workflow,
   FileCode, Database, Monitor
 } from 'lucide-react'
+import SplitFlapAgent from '../components/SplitFlapAgent'
 
 const REPO_URL = 'https://github.com/xezpeleta/proxcli'
 function GithubIcon({ className = 'w-5 h-5' }) {
@@ -28,8 +29,11 @@ function Hero() {
           <h1 className="text-4xl md:text-6xl font-bold leading-tight mb-6">
             proxcli,
             <br />
-            <span className="text-tertiary">a tool for humans & agents</span>
+            <span className="text-tertiary">a tool for</span>
           </h1>
+          <div className="mb-8 -mt-2 overflow-hidden" style={{ height: 'clamp(100px, 16vw, 170px)' }}>
+            <SplitFlapAgent />
+          </div>
           <p className="text-lg md:text-xl text-muted max-w-2xl mb-8 leading-relaxed">
             A single binary to manage every aspect of your Proxmox VE cluster.
             Beautiful tables for humans, structured JSON for automation, and 
