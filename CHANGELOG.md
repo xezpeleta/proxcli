@@ -308,6 +308,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CSRF ticket auto-refresh on 401.
 - AI-agent-friendly: default JSON output, strict exit codes, `--dry-run` mode.
 
+[0.13.1]: https://github.com/xezpeleta/proxcli/releases/tag/v0.13.1
+[0.13.0]: https://github.com/xezpeleta/proxcli/releases/tag/v0.13.0
+[0.12.0]: https://github.com/xezpeleta/proxcli/releases/tag/v0.12.0
+[0.11.0]: https://github.com/xezpeleta/proxcli/releases/tag/v0.11.0
 [0.10.0]: https://github.com/xezpeleta/proxcli/releases/tag/v0.10.0
 [0.9.1]: https://github.com/xezpeleta/proxcli/releases/tag/v0.9.1
 [0.9.0]: https://github.com/xezpeleta/proxcli/releases/tag/v0.9.0
