@@ -26,6 +26,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **``proxmox vm ip <vmid>``**: quick IP address lookup via guest agent.
   Returns interface name, IP, and prefix; filters out loopback and
   link-local addresses.
+- **``proxmox container ip <vmid>``**: IP address lookup for LXC containers.
+  Wraps ``GET /nodes/{node}/lxc/{vmid}/interfaces``, extracting inet/inet6
+  addresses; filters loopback and link-local.
 
 ### Fixed
 - **Test suite**: all 102 tests now pass reliably. Root cause was the `.venv`

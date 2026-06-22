@@ -82,7 +82,7 @@ High-impact VM/container workflows that exist in the Proxmox API but are missing
   - Combines guest agent network-get-interfaces (already implemented) into a one-shot "give me the IPs" command. Filter out loopback/link-local.
   - From piclaw: `vm.ip` and `lxc.ip` workflows.
 
-- [ ] **LXC IP quick-lookup**
+- [x] **LXC IP quick-lookup**
   - `proxmox container ip <vmid> [--node <node>]`
   - Wraps `GET /nodes/{node}/lxc/{vmid}/interfaces`, extracting IPv4/IPv6 addresses.
   - From piclaw: `lxc.ip` workflow.
