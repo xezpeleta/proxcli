@@ -126,6 +126,12 @@ def register_vm_parser(subparsers: argparse._SubParsersAction) -> None:
                              help="Target storage for local disks (requires --with-local-disks)")
     vm_migrate.set_defaults(func=_vm_migrate)
 
+    # --- vm template ---
+    vm_template = vm_sub.add_parser("template", help="Convert a VM into a template")
+    vm_template.add_argument("vmid", type=vmid_type, help="VM ID")
+    vm_template.add_argument("--node", help="Node name (auto-detected if omitted)")
+    vm_template.set_defaults(func=_vm_template)
+
     # --- vm config ---
     vm_config = vm_sub.add_parser("config", help="Show VM configuration (clean, suitable for --file import)")
     vm_config.add_argument("vmid", type=vmid_type, help="VM ID")
@@ -591,6 +597,21 @@ def _vm_migrate(args: argparse.Namespace, client: ProxmoxClient) -> dict:
     result = client.post(f"/nodes/{node}/qemu/{args.vmid}/migrate", data=data)
     if isinstance(result, dict) and "data" not in result and "error" not in result:
         result = {"data": result, "vmid": args.vmid, "source_node": node, "target_node": args.target, "_node": node}
+    return result
+
+
+def _vm_template(args: argparse.Namespace, client: ProxmoxClient) -> dict:
+    """Convert a VM into a template.
+
+    Wraps ``POST /nodes/{node}/qemu/{vmid}/template``.
+    """
+    node = _resolve_node(client, args.node, args.vmid)
+    if not node:
+        return {"error": f"VM {args.vmid} not found"}
+
+    result = client.post(f"/nodes/{node}/qemu/{args.vmid}/template")
+    if isinstance(result, dict) and "data" not in result and "error" not in result:
+        result = {"data": result, "vmid": args.vmid, "_node": node}
     return result
 
 
