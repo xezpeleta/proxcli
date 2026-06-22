@@ -132,6 +132,22 @@ def register_vm_parser(subparsers: argparse._SubParsersAction) -> None:
     vm_template.add_argument("--node", help="Node name (auto-detected if omitted)")
     vm_template.set_defaults(func=_vm_template)
 
+    # --- vm iso ---
+    vm_iso = vm_sub.add_parser("iso", help="Attach or detach an ISO image to a VM")
+    iso_sub = vm_iso.add_subparsers(dest="iso_action", title="iso actions", required=True)
+
+    iso_attach = iso_sub.add_parser("attach", help="Attach an ISO image")
+    iso_attach.add_argument("vmid", type=vmid_type, help="VM ID")
+    iso_attach.add_argument("--iso-volume", default=None, dest="iso_volume",
+                              help="ISO volume ID (e.g. local:iso/ubuntu-24.04.iso)")
+    iso_attach.add_argument("--node", help="Node name (auto-detected if omitted)")
+    iso_attach.set_defaults(func=_vm_iso_attach)
+
+    iso_detach = iso_sub.add_parser("detach", help="Detach the ISO image")
+    iso_detach.add_argument("vmid", type=vmid_type, help="VM ID")
+    iso_detach.add_argument("--node", help="Node name (auto-detected if omitted)")
+    iso_detach.set_defaults(func=_vm_iso_detach)
+
     # --- vm config ---
     vm_config = vm_sub.add_parser("config", help="Show VM configuration (clean, suitable for --file import)")
     vm_config.add_argument("vmid", type=vmid_type, help="VM ID")
@@ -613,6 +629,72 @@ def _vm_template(args: argparse.Namespace, client: ProxmoxClient) -> dict:
     if isinstance(result, dict) and "data" not in result and "error" not in result:
         result = {"data": result, "vmid": args.vmid, "_node": node}
     return result
+
+
+def _vm_iso_attach(args: argparse.Namespace, client: ProxmoxClient) -> dict:
+    """Attach an ISO image to a VM's virtual CD/DVD drive.
+
+    Wraps ``PUT /nodes/{node}/qemu/{vmid}/config`` with the iso volume
+    set on the ide2 (default CD-ROM) slot.
+    """
+    node = _resolve_node(client, args.node, args.vmid)
+    if not node:
+        return {"error": f"VM {args.vmid} not found"}
+
+    iso_volume = args.iso_volume
+    if iso_volume and ":" not in iso_volume:
+        # If it looks like a filename, try to find its storage
+        iso_volume = _resolve_iso_volume(client, node, iso_volume)
+        if not iso_volume:
+            return {"error": f"ISO '{args.iso_volume}' not found in any storage on node {node}"}
+
+    ide2 = iso_volume if iso_volume else "none"
+    result = client.put(f"/nodes/{node}/qemu/{args.vmid}/config", data={"ide2": ide2})
+    if isinstance(result, dict) and "data" not in result and "error" not in result:
+        result = {"data": result, "vmid": args.vmid, "ide2": ide2, "_node": node}
+    return result
+
+
+def _vm_iso_detach(args: argparse.Namespace, client: ProxmoxClient) -> dict:
+    """Detach the ISO image from a VM's CD/DVD drive.
+
+    Wraps ``PUT /nodes/{node}/qemu/{vmid}/config`` setting ide2 to 'none'.
+    """
+    node = _resolve_node(client, args.node, args.vmid)
+    if not node:
+        return {"error": f"VM {args.vmid} not found"}
+
+    result = client.put(f"/nodes/{node}/qemu/{args.vmid}/config", data={"ide2": "none"})
+    if isinstance(result, dict) and "data" not in result and "error" not in result:
+        result = {"data": result, "vmid": args.vmid, "_node": node}
+    return result
+
+
+def _resolve_iso_volume(client: ProxmoxClient, node: str, iso_name: str) -> str | None:
+    """Search node storages for an ISO matching the given name and return its volid."""
+    result = client.get(f"/nodes/{node}/storage")
+    storages = (
+        result
+        if isinstance(result, list)
+        else result.get("data", []) if isinstance(result, dict) else []
+    )
+    for s in storages:
+        sname = s.get("storage", "")
+        content = s.get("content", "")
+        if not isinstance(content, str) or "iso" not in content:
+            continue
+        iso_result = client.get(
+            f"/nodes/{node}/storage/{sname}/content", params={"content": "iso"}
+        )
+        isos = (
+            iso_result
+            if isinstance(iso_result, list)
+            else iso_result.get("data", []) if isinstance(iso_result, dict) else []
+        )
+        for iso in isos:
+            if isinstance(iso, dict) and iso.get("volid", "").endswith(iso_name):
+                return iso["volid"]
+    return None
 
 
 def _vm_agent_interfaces(args: argparse.Namespace, client: ProxmoxClient) -> dict | list:
