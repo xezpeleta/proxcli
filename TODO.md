@@ -56,7 +56,7 @@ High-impact VM/container workflows that exist in the Proxmox API but are missing
   - Moving VMs between nodes is essential for maintenance and load balancing.
   - From piclaw: `vm.migrate` workflow with online flag and local disk migration.
 
-- [ ] **Backup restore**
+- [x] **Backup restore**
   - `proxmox backup restore <volid> --vmid <id> [--node <node>] [--storage <storage>] [--target-storage <storage>]`
   - Wraps `POST /nodes/{node}/storage/{storage}/content` with archive restore.
   - Currently proxcli can create/list/delete backups but not restore them — a glaring asymmetry.

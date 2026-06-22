@@ -11,6 +11,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **``proxmox vm clone``**: clone a QEMU VM to a new VMID. Supports ``--newid``
   (required), ``--node``, ``--name``, ``--target-node``, ``--target-storage``,
   ``--full`` (1=full, 0=linked), ``--description``, and ``--pool``.
+- **``proxmox vm migrate``**: migrate a QEMU VM to another node. Supports
+  ``--target`` (required), ``--node``, ``--online`` (live migration),
+  ``--with-local-disks``, and ``--target-storage``.
+- **``proxmox backup restore``**: restore a backup to a new VM or container.
+  Supports ``--vmid`` (required), ``--node``, ``--storage``, ``--unique``
+  (unique MACs/IDs), ``--pool``, and ``--start``. Auto-detects guest type
+  (qemu vs lxc) from the backup volume ID.
 
 ### Fixed
 - **Test suite**: all 102 tests now pass reliably. Root cause was the `.venv`
