@@ -29,6 +29,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **``proxmox container ip <vmid>``**: IP address lookup for LXC containers.
   Wraps ``GET /nodes/{node}/lxc/{vmid}/interfaces``, extracting inet/inet6
   addresses; filters loopback and link-local.
+- **``proxmox vm disk resize``**: resize a VM disk. Wraps
+  ``PUT /nodes/{node}/qemu/{vmid}/resize`` with ``--disk`` and ``--size``.
+- **``proxmox vm agent`` new subcommands**: ``osinfo`` (guest OS details),
+  ``fsinfo`` (filesystem info), ``users`` (user accounts), and ``exec``
+  (execute a command inside the guest with base64 I/O decoding and result
+  polling).
 
 ### Fixed
 - **Test suite**: all 102 tests now pass reliably. Root cause was the `.venv`
