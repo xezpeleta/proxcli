@@ -154,6 +154,17 @@ def register_vm_parser(subparsers: argparse._SubParsersAction) -> None:
     vm_ip.add_argument("--node", help="Node name (auto-detected if omitted)")
     vm_ip.set_defaults(func=_vm_ip)
 
+    # --- vm disk ---
+    vm_disk = vm_sub.add_parser("disk", help="Manage VM disks")
+    disk_sub = vm_disk.add_subparsers(dest="disk_action", title="disk actions", required=True)
+
+    disk_resize = disk_sub.add_parser("resize", help="Resize a VM disk")
+    disk_resize.add_argument("vmid", type=vmid_type, help="VM ID")
+    disk_resize.add_argument("--disk", required=True, help="Disk to resize (e.g. scsi0, virtio0)")
+    disk_resize.add_argument("--size", required=True, help="New size (e.g. +10G to grow, 50G to set)")
+    disk_resize.add_argument("--node", help="Node name (auto-detected if omitted)")
+    disk_resize.set_defaults(func=_vm_disk_resize)
+
     # --- vm config ---
     vm_config = vm_sub.add_parser("config", help="Show VM configuration (clean, suitable for --file import)")
     vm_config.add_argument("vmid", type=vmid_type, help="VM ID")
@@ -742,6 +753,22 @@ def _vm_ip(args: argparse.Namespace, client: ProxmoxClient) -> dict | list:
                 "_node": node,
             })
     return ips if ips else {"message": f"No non-local IPs found for VM {args.vmid}"}
+
+
+def _vm_disk_resize(args: argparse.Namespace, client: ProxmoxClient) -> dict:
+    """Resize a VM disk.
+
+    Wraps ``PUT /nodes/{node}/qemu/{vmid}/resize``.
+    """
+    node = _resolve_node(client, args.node, args.vmid)
+    if not node:
+        return {"error": f"VM {args.vmid} not found"}
+
+    data = {"disk": args.disk, "size": args.size}
+    result = client.put(f"/nodes/{node}/qemu/{args.vmid}/resize", data=data)
+    if isinstance(result, dict) and "data" not in result and "error" not in result:
+        result = {"data": result, "vmid": args.vmid, "disk": args.disk, "size": args.size, "_node": node}
+    return result
 
 
 def _vm_agent_interfaces(args: argparse.Namespace, client: ProxmoxClient) -> dict | list:
