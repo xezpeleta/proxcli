@@ -156,7 +156,12 @@ function Features() {
     {
       icon: Container,
       title: 'VMs & Containers',
-      description: 'Full lifecycle management for both QEMU VMs and LXC containers: create, start, stop, snapshots, delete.'
+      description: 'Full lifecycle management: create, clone, migrate, start, stop, snapshots, templates, ISO attach, disk resize, delete. Plus LXC containers.'
+    },
+    {
+      icon: Shield,
+      title: 'Backup & Restore',
+      description: 'Create vzdump backups (snapshot/suspend/stop) and restore them to new VMs or containers. Auto-detects guest type from backup volume.'
     },
     {
       icon: Lock,
@@ -176,7 +181,12 @@ function Features() {
     {
       icon: Clock,
       title: 'Task Monitoring',
-      description: <>List tasks, show details, and stream logs in real-time with <code className="font-mono text-tertiary bg-blue-50 px-1 rounded">--follow</code>, just like <code className="font-mono text-tertiary bg-blue-50 px-1 rounded">tail -f</code>.</>
+      description: <>List tasks, show details, stream logs in real-time with <code className="font-mono text-tertiary bg-blue-50 px-1 rounded">--follow</code>, and block-wait for completion with <code className="font-mono text-tertiary bg-blue-50 px-1 rounded">task wait</code>.</>
+    },
+    {
+      icon: Monitor,
+      title: 'Guest Agent Integration',
+      description: 'Query IP addresses, OS info, filesystems, user accounts, and execute commands inside VMs and containers via the QEMU guest agent and LXC interfaces.'
     },
     {
       icon: Workflow,
@@ -246,11 +256,20 @@ proxmox vm show 100
 # Create a new VM
 proxmox vm create --node pve01 --memory 2048 --cores 2 --name webserver
 
+# Clone a VM
+proxmox vm clone 100 --newid 200 --full
+
 # Start it up
 proxmox vm start 100
 
+# Get its IP
+proxmox vm ip 100
+
 # Check cluster status
-proxmox cluster status`} />
+proxmox cluster status
+
+# Wait for a task to complete
+proxmox task wait UPID:pve01:...`} />
           </div>
           <div className="mt-6 p-6 bg-surface border border-border rounded-lg">
             <div className="flex items-start gap-3">
@@ -383,7 +402,7 @@ function OutputFormats() {
 
 function Stats() {
   const stats = [
-    { label: 'CLI Resources', value: '11', icon: Terminal },
+    { label: 'CLI Resources', value: '12', icon: Terminal },
     { label: 'Python Version', value: '3.10+', icon: Code2 },
     { label: 'Runtime Deps', value: '4', icon: Database },
     { label: 'Install Time', value: '≤60s', icon: Clock },
@@ -446,14 +465,14 @@ function CommandReference() {
     {
       resource: 'vm',
       icon: Monitor,
-      desc: 'QEMU virtual machines — create, list, start, stop, reboot, snapshots, cloud-init',
-      examples: ['proxmox vm list', 'proxmox vm create --node pve01 --memory 2048 --cores 2', 'proxmox vm snapshot create 100 pre-upgrade']
+      desc: 'QEMU virtual machines — create, list, clone, migrate, start, stop, reboot, snapshots, cloud-init, template, ISO attach, disk resize, guest agent',
+      examples: ['proxmox vm list', 'proxmox vm clone 100 --newid 200 --full', 'proxmox vm migrate 100 --target pve02 --online', 'proxmox vm disk resize 100 --disk scsi0 --size +10G', 'proxmox vm agent exec 100 --command hostname']
     },
     {
       resource: 'container',
       icon: Container,
-      desc: 'LXC containers — create, list, start, stop, delete',
-      examples: ['proxmox container list', 'proxmox container create --node pve01 --ostemplate local:vztmpl/debian-12']
+      desc: 'LXC containers — create, list, start, stop, delete, IP lookup',
+      examples: ['proxmox container list', 'proxmox container create --node pve01 --ostemplate local:vztmpl/debian-12', 'proxmox container ip 100']
     },
     {
       resource: 'node',
@@ -482,14 +501,14 @@ function CommandReference() {
     {
       resource: 'task',
       icon: Clock,
-      desc: 'Task listing, details, and real-time log streaming',
-      examples: ['proxmox task list', 'proxmox task log UPID:pve01:... --follow']
+      desc: 'Task listing, details, blocking wait, and real-time log streaming',
+      examples: ['proxmox task list', 'proxmox task wait UPID:pve01:... --timeout 60000', 'proxmox task log UPID:pve01:... --follow']
     },
     {
       resource: 'backup',
       icon: Shield,
-      desc: 'vzdump backup management — list, create, delete, snapshot/suspend/stop modes',
-      examples: ['proxmox backup list', 'proxmox backup create --node pve01 --vmid 100 --storage local']
+      desc: 'vzdump backup management — list, create, restore, delete, snapshot/suspend/stop modes',
+      examples: ['proxmox backup list', 'proxmox backup create --node pve01 --vmid 100 --storage local', 'proxmox backup restore --vmid 200 --node pve01 --storage local --archive local:backup/vzdump-qemu-100-...']
     },
     {
       resource: 'user / role / acl',

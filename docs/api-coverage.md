@@ -1,6 +1,6 @@
 # proxcli API Coverage
 
-Last updated: 2026-06-20
+Last updated: 2026-06-22
 
 This document tracks every Proxmox VE REST API endpoint wrapped by proxcli,
 along with endpoints not yet implemented.
@@ -11,8 +11,8 @@ along with endpoints not yet implemented.
 
 | Category       | Status                                            |
 |----------------|---------------------------------------------------|
-| VM lifecycle   | Full CRUD, snapshots, cloud-init, guest agent      |
-| Containers     | Full CRUD, firewall                                |
+| VM lifecycle   | Full CRUD, snapshots, cloud-init, guest agent, clone, migrate, template, ISO, IP lookup, disk resize/detach/remove, agent exec/osinfo/fsinfo/users |
+| Containers     | Full CRUD, firewall, IP lookup                     |
 | Nodes          | Full read — DNS, time, services, PCI, netstat       |
 | Storage        | List, show, content, upload, status                 |
 | Networking     | Read-only — bridges, bonds, VLANs, physical NICs   |
@@ -20,8 +20,8 @@ along with endpoints not yet implemented.
 | Ceph           | Status, OSDs, logs, disk inventory                 |
 | Access control | Users, roles, ACLs — full CRUD                     |
 | Auth           | Status, setup, permission check                    |
-| Backup         | List, create, delete, task tracking, defaults      |
-| Tasks          | List, show, real-time log streaming (`--follow`)   |
+| Backup         | List, create, delete, restore, task tracking, defaults |
+| Tasks          | List, show, wait, real-time log streaming (`--follow`) |
 | Shell          | Bash, Zsh, Fish completion                         |
 
 ## Implemented endpoints
@@ -47,6 +47,19 @@ along with endpoints not yet implemented.
 | `snapshot delete <vmid> <name>` | DEL | `/nodes/{node}/qemu/{vmid}/snapshot/{snapname}` |
 | `cloudinit generate <vmid>` | PUT | `/nodes/{node}/qemu/{vmid}/config` |
 | `agent interfaces <vmid>` | GET | `/nodes/{node}/qemu/{vmid}/agent/network-get-interfaces` |
+| `agent osinfo <vmid>` | GET | `/nodes/{node}/qemu/{vmid}/agent/get-osinfo` |
+| `agent fsinfo <vmid>` | GET | `/nodes/{node}/qemu/{vmid}/agent/get-fsinfo` |
+| `agent users <vmid>` | GET | `/nodes/{node}/qemu/{vmid}/agent/get-users` |
+| `agent exec <vmid>` | POST | `/nodes/{node}/qemu/{vmid}/agent/exec` + `…/exec-status` |
+| `clone <vmid>` | POST | `/nodes/{node}/qemu/{vmid}/clone` |
+| `migrate <vmid>` | POST | `/nodes/{node}/qemu/{vmid}/migrate` |
+| `template <vmid>` | POST | `/nodes/{node}/qemu/{vmid}/template` |
+| `ip <vmid>` | GET | `/nodes/{node}/qemu/{vmid}/agent/network-get-interfaces` |
+| `iso attach <vmid>` | PUT | `/nodes/{node}/qemu/{vmid}/config` (ide2) |
+| `iso detach <vmid>` | PUT | `/nodes/{node}/qemu/{vmid}/config` (ide2=none) |
+| `disk resize <vmid>` | PUT | `/nodes/{node}/qemu/{vmid}/resize` |
+| `disk detach <vmid>` | PUT | `/nodes/{node}/qemu/{vmid}/config` (disk=none) |
+| `disk remove <vmid>` | PUT | `/nodes/{node}/qemu/{vmid}/config` (delete=disk) |
 
 #### `vm firewall`
 
@@ -73,6 +86,7 @@ along with endpoints not yet implemented.
 | `start <vmid>` | POST | `/nodes/{node}/lxc/{vmid}/status/start` |
 | `stop <vmid>` | POST | `/nodes/{node}/lxc/{vmid}/status/stop` |
 | `delete <vmid>` | DEL | `/nodes/{node}/lxc/{vmid}` |
+| `ip <vmid>` | GET | `/nodes/{node}/lxc/{vmid}/interfaces` |
 | `firewall …` | — | `/nodes/{node}/lxc/{vmid}/firewall/*` |
 
 ### Nodes (`node`)
@@ -171,6 +185,7 @@ along with endpoints not yet implemented.
 |------------|------|----------|
 | `list` | GET | `/nodes/{node}/storage/{storage}/content` |
 | `create` | POST | `/nodes/{node}/vzdump` |
+| `restore` | POST | `/nodes/{node}/qemu` or `/nodes/{node}/lxc` |
 | `delete <id>` | DEL | `/nodes/{node}/storage/{storage}/content/{volid}` |
 | `tasks` | GET | `/nodes/{node}/tasks` |
 | `defaults` | GET | `/cluster/backup/default` |
@@ -181,6 +196,7 @@ along with endpoints not yet implemented.
 |------------|------|----------|
 | `list` | GET | `/nodes/{node}/tasks` |
 | `show <upid>` | GET | `/nodes/{node}/tasks/{upid}/status` |
+| `wait <upid>` | GET | `/nodes/{node}/tasks/{upid}/status` (polling loop) |
 | `log <upid>` | GET | `/nodes/{node}/tasks/{upid}/log` |
 
 ### Auth & completion
