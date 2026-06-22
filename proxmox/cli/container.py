@@ -57,6 +57,12 @@ def register_container_parser(subparsers: argparse._SubParsersAction) -> None:
     ct_delete.add_argument("--purge", action="store_true", help="Purge from all configurations")
     ct_delete.set_defaults(func=_ct_delete)
 
+    # --- container ip ---
+    ct_ip = ct_sub.add_parser("ip", help="Show IP addresses of a container")
+    ct_ip.add_argument("vmid", type=vmid_type, help="Container ID")
+    ct_ip.add_argument("--node", help="Node name (auto-detected if omitted)")
+    ct_ip.set_defaults(func=_ct_ip)
+
     # --- firewall ---
     fw = ct_sub.add_parser("firewall", help="Manage container firewall")
     fw_sub = fw.add_subparsers(dest="fw_resource", title="resources", required=True)
@@ -230,6 +236,43 @@ def _ct_delete(args: argparse.Namespace, client: ProxmoxClient) -> dict:
     if args.purge:
         params["purge"] = 1
     return client.delete(f"/nodes/{node}/lxc/{args.vmid}", params=params or None)
+
+
+def _ct_ip(args: argparse.Namespace, client: ProxmoxClient) -> dict | list:
+    """Show IP addresses of a container.
+
+    Wraps ``GET /nodes/{node}/lxc/{vmid}/interfaces``.
+    """
+    from typing import Any
+
+    node = _resolve_ct_node(client, args.node, args.vmid)
+    if not node:
+        return {"error": f"Container {args.vmid} not found"}
+    result = client.get(f"/nodes/{node}/lxc/{args.vmid}/interfaces")
+    data = result if isinstance(result, list) else result.get("data", []) if isinstance(result, dict) else []
+
+    ips: list[dict[str, Any]] = []
+    for iface in data:
+        if not isinstance(iface, dict):
+            continue
+        name = iface.get("name", "")
+        # LXC interface model: name, inet (string), inet6 (string)
+        for af, key in [("inet", "inet"), ("inet6", "inet6")]:
+            addr_val = iface.get(key, "")
+            if addr_val and addr_val != "auto" and "/" in str(addr_val):
+                ip_part, prefix = str(addr_val).split("/", 1)
+                if ip_part.startswith("127.") or ip_part == "::1" or ip_part.startswith("fe80:"):
+                    continue
+                ips.append({
+                    "interface": name,
+                    "family": af,
+                    "ip": ip_part,
+                    "prefix": int(prefix) if prefix.isdigit() else prefix,
+                    "address": str(addr_val),
+                    "_vmid": args.vmid,
+                    "_node": node,
+                })
+    return ips if ips else {"message": f"No non-local IPs found for container {args.vmid}"}
 
 
 # ---------------------------------------------------------------------------
