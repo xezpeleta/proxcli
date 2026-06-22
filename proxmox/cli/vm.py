@@ -97,6 +97,22 @@ def register_vm_parser(subparsers: argparse._SubParsersAction) -> None:
     vm_delete.add_argument("--purge", action="store_true", help="Purge VM from all configurations")
     vm_delete.set_defaults(func=_vm_delete)
 
+    # --- vm clone ---
+    vm_clone = vm_sub.add_parser("clone", help="Clone a VM to a new VMID")
+    vm_clone.add_argument("vmid", type=vmid_type, help="Source VM ID")
+    vm_clone.add_argument("--newid", type=vmid_type, required=True, help="Target VM ID for the clone")
+    vm_clone.add_argument("--node", help="Source node (auto-detected if omitted)")
+    vm_clone.add_argument("--name", default=None, help="Name for the cloned VM")
+    vm_clone.add_argument("--target-node", default=None, dest="target_node",
+                           help="Target node (default: same as source)")
+    vm_clone.add_argument("--target-storage", default=None, dest="target_storage",
+                           help="Target storage (default: same as source)")
+    vm_clone.add_argument("--full", type=int, choices=[0, 1], default=1,
+                           help="Full clone (1) or linked clone (0). Default: 1 (full)")
+    vm_clone.add_argument("--description", default=None, help="Description for the cloned VM")
+    vm_clone.add_argument("--pool", default=None, help="Add the clone to a pool")
+    vm_clone.set_defaults(func=_vm_clone)
+
     # --- vm config ---
     vm_config = vm_sub.add_parser("config", help="Show VM configuration (clean, suitable for --file import)")
     vm_config.add_argument("vmid", type=vmid_type, help="VM ID")
@@ -512,6 +528,35 @@ def _vm_delete(args: argparse.Namespace, client: ProxmoxClient) -> dict:
 # ---------------------------------------------------------------------------
 # VM guest agent handlers
 # ---------------------------------------------------------------------------
+
+def _vm_clone(args: argparse.Namespace, client: ProxmoxClient) -> dict:
+    """Clone a VM to a new VMID.
+
+    Wraps ``POST /nodes/{node}/qemu/{vmid}/clone``.
+    """
+    node = _resolve_node(client, args.node, args.vmid)
+    if not node:
+        return {"error": f"Source VM {args.vmid} not found"}
+
+    data: dict[str, Any] = {"newid": args.newid}
+    if args.name:
+        data["name"] = args.name
+    if args.target_node:
+        data["target"] = args.target_node
+    if args.target_storage:
+        data["storage"] = args.target_storage
+    if args.full is not None:
+        data["full"] = args.full
+    if args.description:
+        data["description"] = args.description
+    if args.pool:
+        data["pool"] = args.pool
+
+    result = client.post(f"/nodes/{node}/qemu/{args.vmid}/clone", data=data)
+    if isinstance(result, dict) and "data" not in result and "error" not in result:
+        result = {"data": result, "source_vmid": args.vmid, "new_vmid": args.newid, "_node": node}
+    return result
+
 
 def _vm_agent_interfaces(args: argparse.Namespace, client: ProxmoxClient) -> dict | list:
     """Retrieve network interfaces via QEMU guest agent.

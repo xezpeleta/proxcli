@@ -38,13 +38,139 @@ Completed items are marked with a check. Implementation notes are preserved for 
 
 ---
 
-## v1.2 — Resource Coverage
+## v1.2 — VM & Container Lifecycle Gaps
+
+High-impact VM/container workflows that exist in the Proxmox API but are missing from the CLI. Ordered by user value.
+
+### Priority: HIGH
+
+- [x] **VM clone**
+  - `proxmox vm clone <vmid> --newid <id> [--name <name>] [--target-node <node>] [--target-storage <storage>] [--full] [--description <text>]`
+  - Wraps `POST /nodes/{node}/qemu/{vmid}/clone`
+  - Cloning from templates or golden images is a core homelab/admin workflow.
+  - From piclaw: `vm.clone` workflow covers full/linked clone, target node/storage, optional description.
+
+- [ ] **VM migrate**
+  - `proxmox vm migrate <vmid> --target <node> [--target-storage <storage>] [--online] [--with-local-disks]`
+  - Wraps `POST /nodes/{node}/qemu/{vmid}/migrate`
+  - Moving VMs between nodes is essential for maintenance and load balancing.
+  - From piclaw: `vm.migrate` workflow with online flag and local disk migration.
+
+- [ ] **Backup restore**
+  - `proxmox backup restore <volid> --vmid <id> [--node <node>] [--storage <storage>] [--target-storage <storage>]`
+  - Wraps `POST /nodes/{node}/storage/{storage}/content` with archive restore.
+  - Currently proxcli can create/list/delete backups but not restore them — a glaring asymmetry.
+  - From piclaw: `backup.restore` workflow.
+
+### Priority: MEDIUM
+
+- [ ] **VM template (convert to template)**
+  - `proxmox vm template <vmid> [--node <node>]`
+  - Wraps `POST /nodes/{node}/qemu/{vmid}/template`
+  - Small addition but unlocks the clone-from-template workflow.
+  - From piclaw: `vm.template.create` workflow.
+
+- [ ] **VM ISO attach / detach**
+  - `proxmox vm iso attach <vmid> --iso-volume <volid> [--slot ide2] [--node <node>]`
+  - `proxmox vm iso detach <vmid> [--slot ide2] [--node <node>]`
+  - Wraps `PUT /nodes/{node}/qemu/{vmid}/config` with cdrom slot changes.
+  - Exposing this as first-class actions is much more intuitive than raw config editing.
+  - From piclaw: `vm.iso.attach` and `vm.iso.detach` workflows.
+
+- [ ] **VM IP quick-lookup**
+  - `proxmox vm ip <vmid> [--node <node>]`
+  - Combines guest agent network-get-interfaces (already implemented) into a one-shot "give me the IPs" command. Filter out loopback/link-local.
+  - From piclaw: `vm.ip` and `lxc.ip` workflows.
+
+- [ ] **LXC IP quick-lookup**
+  - `proxmox container ip <vmid> [--node <node>]`
+  - Wraps `GET /nodes/{node}/lxc/{vmid}/interfaces`, extracting IPv4/IPv6 addresses.
+  - From piclaw: `lxc.ip` workflow.
+
+### Priority: LOW
+
+- [ ] **VM disk resize**
+  - `proxmox vm disk resize <vmid> --disk <disk> --size <+N or N> [--node <node>]`
+  - Wraps `PUT /nodes/{node}/qemu/{vmid}/resize`.
+  - From piclaw: `vm.disk.resize` workflow.
+
+- [ ] **VM disk detach / remove**
+  - `proxmox vm disk detach <vmid> --disk <disk> [--node <node>]`
+  - `proxmox vm disk remove <vmid> --disk <disk> [--force] [--node <node>]`
+  - From piclaw: `vm.disk.detach` and `vm.disk.remove` workflows.
+
+- [ ] **VM guest agent exec**
+  - `proxmox vm agent exec <vmid> --command <cmd> [--args ...] [--input-data ...] [--shell posix|powershell]`
+  - Extend the existing `vm agent` subcommand with an `exec` sub-action.
+  - Wraps `POST /nodes/{node}/qemu/{vmid}/agent/exec` + polling for result.
+  - From piclaw: `vm.agent.exec` workflow. Bounded command execution with base64 I/O decoding.
+
+- [ ] **VM guest agent OS info / FS info / users**
+  - `proxmox vm agent osinfo <vmid>` — `GET /nodes/{node}/qemu/{vmid}/agent/get-osinfo`
+  - `proxmox vm agent fsinfo <vmid>` — `GET /nodes/{node}/qemu/{vmid}/agent/get-fsinfo`
+  - `proxmox vm agent users <vmid>` — `GET /nodes/{node}/qemu/{vmid}/agent/get-users`
+  - From piclaw: `vm.agent.osinfo`, `vm.agent.fsinfo`, `vm.agent.users` workflows.
+
+- [ ] **Task wait (blocking poll)**
+  - `proxmox task wait <upid> [--timeout <ms>] [--poll <ms>]`
+  - Polls task status until completion, useful in scripts. pixlaw has both `task.wait` and `vm.wait_state`.
+
+---
+
+## v1.3 — Metrics & Monitoring
+
+The piclaw proxmox addon has a rich `metrics.*` workflow family. proxcli has zero metrics support. This would be a killer feature for a CLI.
+
+- [ ] **`proxmox metrics` top-level subcommand**
+  - Wraps the RRD data API endpoints (`/nodes/{node}/rrddata`, `/nodes/{node}/qemu/{vmid}/rrddata`, `/nodes/{node}/storage/{storage}/rrddata`).
+  - Common flags: `--timeframe hour|day|week|month|year` (default: `hour`), `--cf AVERAGE|MAX` (default: `AVERAGE`).
+
+- [ ] **`proxmox metrics node <node> [--metric <name>]`**
+  - Pulls node-level RRD series: CPU, memory, disk, network, load, etc.
+
+- [ ] **`proxmox metrics vm <vmid> [--node <node>] [--metric <name>]`**
+  - Pulls VM-level RRD series for a specific guest.
+
+- [ ] **`proxmox metrics storage <storage> --node <node> [--metric <name>]`**
+  - Pulls storage usage metrics over time.
+
+- [ ] **Metrics output: chart / CSV / JSON**
+  - `--output chart` could render a simple ASCII/Unicode sparkline in the terminal.
+  - `--output csv` for data export into external tools.
+  - `--output json` for programmatic consumers.
+
+- [ ] **Guest comparison chart** (inspired by piclaw skill `proxmox-guest-compare-chart`)
+  - A `proxmox compare` or `proxmox metrics compare` subcommand that fetches RRD series for two guests and renders an SVG chart or terminal comparison table.
+  - The piclaw skill uses a Bun script to render SVG/CSV/JSON from normalized input — we could do this purely in Python.
+
+---
+
+## v1.4 — Storage Gaps
+
+- [ ] **Storage create**
+  - `proxmox storage create <name> --type <type> [--config key=value ...]`
+  - Wraps `POST /storage`. Supports dir, nfs, lvmthin, zfspool, etc.
+  - From piclaw: `storage.create` workflow. Config fields passed as a flat dict for backend-specific options.
+
+- [ ] **Storage download-url** (server-side pull)
+  - `proxmox storage download-url --node <node> --storage <storage> --url <url> --filename <name> [--content iso|vztmpl|import] [--checksum <sha256:...>] [--verify-tls]`
+  - Wraps `POST /nodes/{node}/storage/{storage}/download-url`.
+  - Lets you pull ISOs/templates directly into storage without agent-side upload.
+  - From piclaw: `storage.download_url` workflow with checksum verification.
+
+---
+
+## v1.5 — Resource Coverage (existing TODO)
 
 - [ ] **SDN (Software-Defined Networking)**
   - `proxmox sdn` subcommand: `zones`, `vnets`, `subnets`. Wraps `/cluster/sdn/*` endpoints.
 
 - [ ] **HA (High Availability)**
   - `proxmox ha` subcommand: `status`, `groups`, `resources`. Wraps `/cluster/ha/*` endpoints.
+
+- [ ] **Node syslog**
+  - `proxmox node log <node> [--limit N]`
+  - Wraps `GET /nodes/{node}/syslog`. Read node-level syslog entries (currently only `ceph log` exists).
 
 ---
 
@@ -79,9 +205,6 @@ Completed items are marked with a check. Implementation notes are preserved for 
 
 - [ ] **Webhook / event listener**
   - Subscribe to Proxmox cluster events and pipe them to a webhook or stdout for external monitoring.
-
-- [ ] **VM migration wizard**
-  - `proxmox vm migrate <vmid> --to <target-node>` with progress tracking and live migration support.
 
 - [ ] **Proxmox Backup Server (PBS) integration**
   - Separate subcommand or a companion tool (`proxbackup`?) for managing PBS instances via their API.
