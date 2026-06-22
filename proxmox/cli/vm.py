@@ -113,6 +113,19 @@ def register_vm_parser(subparsers: argparse._SubParsersAction) -> None:
     vm_clone.add_argument("--pool", default=None, help="Add the clone to a pool")
     vm_clone.set_defaults(func=_vm_clone)
 
+    # --- vm migrate ---
+    vm_migrate = vm_sub.add_parser("migrate", help="Migrate a VM to another node")
+    vm_migrate.add_argument("vmid", type=vmid_type, help="VM ID")
+    vm_migrate.add_argument("--target", required=True, help="Target node to migrate to")
+    vm_migrate.add_argument("--node", help="Source node (auto-detected if omitted)")
+    vm_migrate.add_argument("--online", action="store_true",
+                             help="Online migration (live) without shutting down")
+    vm_migrate.add_argument("--with-local-disks", action="store_true", dest="with_local_disks",
+                             help="Migrate local disks alongside the VM")
+    vm_migrate.add_argument("--target-storage", default=None, dest="target_storage",
+                             help="Target storage for local disks (requires --with-local-disks)")
+    vm_migrate.set_defaults(func=_vm_migrate)
+
     # --- vm config ---
     vm_config = vm_sub.add_parser("config", help="Show VM configuration (clean, suitable for --file import)")
     vm_config.add_argument("vmid", type=vmid_type, help="VM ID")
@@ -555,6 +568,29 @@ def _vm_clone(args: argparse.Namespace, client: ProxmoxClient) -> dict:
     result = client.post(f"/nodes/{node}/qemu/{args.vmid}/clone", data=data)
     if isinstance(result, dict) and "data" not in result and "error" not in result:
         result = {"data": result, "source_vmid": args.vmid, "new_vmid": args.newid, "_node": node}
+    return result
+
+
+def _vm_migrate(args: argparse.Namespace, client: ProxmoxClient) -> dict:
+    """Migrate a VM to another node.
+
+    Wraps ``POST /nodes/{node}/qemu/{vmid}/migrate``.
+    """
+    node = _resolve_node(client, args.node, args.vmid)
+    if not node:
+        return {"error": f"VM {args.vmid} not found"}
+
+    data: dict[str, Any] = {"target": args.target}
+    if args.online:
+        data["online"] = 1
+    if args.with_local_disks:
+        data["with-local-disks"] = 1
+    if args.target_storage:
+        data["targetstorage"] = args.target_storage
+
+    result = client.post(f"/nodes/{node}/qemu/{args.vmid}/migrate", data=data)
+    if isinstance(result, dict) and "data" not in result and "error" not in result:
+        result = {"data": result, "vmid": args.vmid, "source_node": node, "target_node": args.target, "_node": node}
     return result
 
 
