@@ -32,6 +32,19 @@ def register_task_parser(subparsers: argparse._SubParsersAction) -> None:
     )
     task_log.set_defaults(func=_task_log)
 
+    # --- task wait ---
+    task_wait = task_sub.add_parser("wait", help="Block until a task completes")
+    task_wait.add_argument("upid", help="Task UPID")
+    task_wait.add_argument(
+        "--timeout", type=int, default=60000,
+        help="Max wait in milliseconds (default: 60000 = 60s)"
+    )
+    task_wait.add_argument(
+        "--poll", type=int, default=500,
+        help="Poll interval in milliseconds (default: 500)"
+    )
+    task_wait.set_defaults(func=_task_wait)
+
 
 def _extract_node_from_upid(upid: str) -> str | None:
     """Parse node name from a Proxmox UPID string: UPID:{node}:..."""
@@ -75,3 +88,42 @@ def _task_show(args: argparse.Namespace, client: ProxmoxClient) -> dict:
 def _task_log(args: argparse.Namespace, client: ProxmoxClient) -> None:
     """Stream task log (returns None so main.py skips JSON formatting)."""
     client.stream_task_log(args.upid, follow=args.follow)
+
+
+def _task_wait(args: argparse.Namespace, client: ProxmoxClient) -> dict:
+    """Block until a task completes.
+
+    Polls ``GET /nodes/{node}/tasks/{upid}/status`` until the task
+    reaches a terminal state (``ok`` or ``error``) or timeout expires.
+    """
+    import time
+
+    node = _extract_node_from_upid(args.upid)
+    if not node:
+        return {"error": f"Could not extract node from UPID: {args.upid}"}
+
+    started = time.monotonic()
+    timeout_s = args.timeout / 1000.0
+    poll_s = args.poll / 1000.0
+
+    while True:
+        status = client.get(f"/nodes/{node}/tasks/{args.upid}/status")
+        if not isinstance(status, dict):
+            return {"error": "Failed to read task status", "detail": status}
+
+        if status.get("status") == "stopped":
+            exitstatus = status.get("exitstatus", "")
+            status["_node"] = node
+            status["elapsed_ms"] = int((time.monotonic() - started) * 1000)
+            if exitstatus == "OK":
+                return {"data": status, "result": "ok"}
+            return {"data": status, "result": "error", "exitstatus": exitstatus}
+
+        elapsed = time.monotonic() - started
+        if elapsed >= timeout_s:
+            return {
+                "error": f"Task did not complete within {args.timeout}ms",
+                "current_status": status.get("status"),
+            }
+
+        time.sleep(poll_s)

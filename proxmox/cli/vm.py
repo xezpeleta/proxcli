@@ -165,6 +165,19 @@ def register_vm_parser(subparsers: argparse._SubParsersAction) -> None:
     disk_resize.add_argument("--node", help="Node name (auto-detected if omitted)")
     disk_resize.set_defaults(func=_vm_disk_resize)
 
+    disk_detach = disk_sub.add_parser("detach", help="Detach a disk from a VM")
+    disk_detach.add_argument("vmid", type=vmid_type, help="VM ID")
+    disk_detach.add_argument("--disk", required=True, help="Disk to detach (e.g. scsi0, virtio0)")
+    disk_detach.add_argument("--node", help="Node name (auto-detected if omitted)")
+    disk_detach.set_defaults(func=_vm_disk_detach)
+
+    disk_remove = disk_sub.add_parser("remove", help="Remove/unlink a VM disk")
+    disk_remove.add_argument("vmid", type=vmid_type, help="VM ID")
+    disk_remove.add_argument("--disk", required=True, help="Disk to remove (e.g. scsi0, virtio0)")
+    disk_remove.add_argument("--force", action="store_true", help="Force removal")
+    disk_remove.add_argument("--node", help="Node name (auto-detected if omitted)")
+    disk_remove.set_defaults(func=_vm_disk_remove)
+
     # --- vm config ---
     vm_config = vm_sub.add_parser("config", help="Show VM configuration (clean, suitable for --file import)")
     vm_config.add_argument("vmid", type=vmid_type, help="VM ID")
@@ -793,6 +806,39 @@ def _vm_disk_resize(args: argparse.Namespace, client: ProxmoxClient) -> dict:
     result = client.put(f"/nodes/{node}/qemu/{args.vmid}/resize", data=data)
     if isinstance(result, dict) and "data" not in result and "error" not in result:
         result = {"data": result, "vmid": args.vmid, "disk": args.disk, "size": args.size, "_node": node}
+    return result
+
+
+def _vm_disk_detach(args: argparse.Namespace, client: ProxmoxClient) -> dict:
+    """Detach a disk from a VM (removes from config, keeps data).
+
+    Wraps ``PUT /nodes/{node}/qemu/{vmid}/config`` setting the disk to 'none'.
+    """
+    node = _resolve_node(client, args.node, args.vmid)
+    if not node:
+        return {"error": f"VM {args.vmid} not found"}
+
+    result = client.put(f"/nodes/{node}/qemu/{args.vmid}/config", data={args.disk: "none"})
+    if isinstance(result, dict) and "data" not in result and "error" not in result:
+        result = {"data": result, "vmid": args.vmid, "disk": args.disk, "_node": node}
+    return result
+
+
+def _vm_disk_remove(args: argparse.Namespace, client: ProxmoxClient) -> dict:
+    """Remove/unlink a VM disk (deletes the disk image).
+
+    Wraps ``PUT /nodes/{node}/qemu/{vmid}/config`` with ``delete`` parameter.
+    """
+    node = _resolve_node(client, args.node, args.vmid)
+    if not node:
+        return {"error": f"VM {args.vmid} not found"}
+
+    data = {"delete": args.disk}
+    if args.force:
+        data["force"] = 1
+    result = client.put(f"/nodes/{node}/qemu/{args.vmid}/config", data=data)
+    if isinstance(result, dict) and "data" not in result and "error" not in result:
+        result = {"data": result, "vmid": args.vmid, "disk": args.disk, "_node": node}
     return result
 
 
