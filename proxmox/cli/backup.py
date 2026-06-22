@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import urllib.parse
+from typing import Any
 
 from ..client.client import ProxmoxClient
 
@@ -197,6 +198,49 @@ def _backup_tasks(args: argparse.Namespace, client: ProxmoxClient) -> list | dic
     return result
 
 
+def _backup_restore(args: argparse.Namespace, client: ProxmoxClient) -> dict:
+    """Restore a backup to a new or existing guest.
+
+    Wraps ``POST /nodes/{node}/qemu`` (or ``/lxc``) with the archive
+    parameter pointing to the backup volume.
+
+    The guest type (VM or container) is auto-detected from the backup
+    volume ID or left as a VM by default if detection fails.
+    """
+    # Determine guest type from volid — backup paths typically contain
+    # /vm/ or /ct/ subpaths
+    volid_lower = args.volid.lower()
+    if "/lxc/" in volid_lower or "/ct/" in volid_lower or "vzdump-lxc" in volid_lower:
+        guest_type = "lxc"
+    else:
+        guest_type = "qemu"
+
+    data: dict[str, Any] = {
+        "vmid": args.vmid,
+        "archive": args.volid,
+    }
+
+    if args.storage:
+        data["storage"] = args.storage
+    if args.unique:
+        data["unique"] = 1
+    if args.pool:
+        data["pool"] = args.pool
+    if args.start:
+        data["start"] = 1
+
+    result = client.post(f"/nodes/{args.node}/{guest_type}", data=data)
+    if isinstance(result, dict) and "data" not in result and "error" not in result:
+        result = {
+            "data": result,
+            "vmid": args.vmid,
+            "type": guest_type,
+            "archive": args.volid,
+            "_node": args.node,
+        }
+    return result
+
+
 def _backup_defaults(args: argparse.Namespace, client: ProxmoxClient) -> dict:
     params: dict = {}
     if args.storage:
@@ -347,3 +391,23 @@ def register_backup_parser(subparsers: argparse._SubParsersAction) -> None:
         "--storage", help="Storage name (e.g. pbs-bianditz)"
     )
     backup_defaults.set_defaults(func=_backup_defaults)
+
+    # backup restore
+    backup_restore = backup_sub.add_parser("restore", help="Restore a backup to a VM or container")
+    backup_restore.add_argument("volid", help="Backup volume ID to restore (e.g. pbs:backup/vm/100/...)")
+    backup_restore.add_argument("--vmid", type=int, required=True, help="Target VM/CT ID to restore to")
+    backup_restore.add_argument(
+        "--node", default="localhost", help="Target node (default: localhost)"
+    )
+    backup_restore.add_argument("--storage", help="Target storage for the restored disks")
+    backup_restore.add_argument(
+        "--unique", action="store_true",
+        help="Assign unique MAC addresses/IDs (for clone-like restores)"
+    )
+    backup_restore.add_argument(
+        "--pool", default=None, help="Add restored guest to a pool"
+    )
+    backup_restore.add_argument(
+        "--start", action="store_true", help="Start the guest after restore"
+    )
+    backup_restore.set_defaults(func=_backup_restore)

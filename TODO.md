@@ -50,7 +50,7 @@ High-impact VM/container workflows that exist in the Proxmox API but are missing
   - Cloning from templates or golden images is a core homelab/admin workflow.
   - From piclaw: `vm.clone` workflow covers full/linked clone, target node/storage, optional description.
 
-- [ ] **VM migrate**
+- [x] **VM migrate**
   - `proxmox vm migrate <vmid> --target <node> [--target-storage <storage>] [--online] [--with-local-disks]`
   - Wraps `POST /nodes/{node}/qemu/{vmid}/migrate`
   - Moving VMs between nodes is essential for maintenance and load balancing.
