@@ -64,20 +64,20 @@ High-impact VM/container workflows that exist in the Proxmox API but are missing
 
 ### Priority: MEDIUM
 
-- [ ] **VM template (convert to template)**
+- [x] **VM template (convert to template)**
   - `proxmox vm template <vmid> [--node <node>]`
   - Wraps `POST /nodes/{node}/qemu/{vmid}/template`
   - Small addition but unlocks the clone-from-template workflow.
   - From piclaw: `vm.template.create` workflow.
 
-- [ ] **VM ISO attach / detach**
+- [x] **VM ISO attach / detach**
   - `proxmox vm iso attach <vmid> --iso-volume <volid> [--slot ide2] [--node <node>]`
   - `proxmox vm iso detach <vmid> [--slot ide2] [--node <node>]`
   - Wraps `PUT /nodes/{node}/qemu/{vmid}/config` with cdrom slot changes.
   - Exposing this as first-class actions is much more intuitive than raw config editing.
   - From piclaw: `vm.iso.attach` and `vm.iso.detach` workflows.
 
-- [ ] **VM IP quick-lookup**
+- [x] **VM IP quick-lookup**
   - `proxmox vm ip <vmid> [--node <node>]`
   - Combines guest agent network-get-interfaces (already implemented) into a one-shot "give me the IPs" command. Filter out loopback/link-local.
   - From piclaw: `vm.ip` and `lxc.ip` workflows.

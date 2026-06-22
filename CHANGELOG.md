@@ -18,6 +18,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Supports ``--vmid`` (required), ``--node``, ``--storage``, ``--unique``
   (unique MACs/IDs), ``--pool``, and ``--start``. Auto-detects guest type
   (qemu vs lxc) from the backup volume ID.
+- **``proxmox vm template``**: convert a VM into a template. Wraps
+  ``POST /nodes/{node}/qemu/{vmid}/template``.
+- **``proxmox vm iso attach/detach``**: attach or eject an ISO image from
+  a VM's virtual CD/DVD drive. ``attach --iso-volume`` accepts a full volid
+  or a bare filename (auto-resolved across node storages).
+- **``proxmox vm ip <vmid>``**: quick IP address lookup via guest agent.
+  Returns interface name, IP, and prefix; filters out loopback and
+  link-local addresses.
 
 ### Fixed
 - **Test suite**: all 102 tests now pass reliably. Root cause was the `.venv`
