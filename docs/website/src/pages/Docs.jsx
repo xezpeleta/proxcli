@@ -10,6 +10,7 @@ import json from 'react-syntax-highlighter/dist/esm/languages/hljs/json'
 import js from 'react-syntax-highlighter/dist/esm/languages/hljs/javascript'
 import plaintext from 'react-syntax-highlighter/dist/esm/languages/hljs/plaintext'
 import { atomOneDark } from 'react-syntax-highlighter/dist/esm/styles/hljs'
+import CoverageGrid from '../components/CoverageGrid'
 
 SyntaxHighlighter.registerLanguage('bash', bash)
 SyntaxHighlighter.registerLanguage('sh', bash)
@@ -661,6 +662,68 @@ function CommandReferenceDocInner() {
   )
 }
 
+// ── API Coverage page ──
+
+function ApiCoveragePage() {
+  const [md, setMd] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+
+  useEffect(() => {
+    fetch(`${import.meta.env.BASE_URL}api-coverage.md`)
+      .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.text() })
+      .then(text => {
+        const stripped = text.replace(/^# .*\n\n?/, '')
+        setMd(stripped)
+      })
+      .catch(setError)
+      .finally(() => setLoading(false))
+  }, [])
+
+  return (
+    <div className="max-w-3xl">
+      <div className="flex items-center gap-4 mb-8">
+        <div className="w-12 h-12 bg-tertiary/10 rounded-lg flex items-center justify-center">
+          <Code2 className="w-6 h-6 text-tertiary" />
+        </div>
+        <h1 className="text-3xl font-bold text-primary">API Coverage</h1>
+      </div>
+
+      <CoverageGrid />
+
+      {loading && <p className="text-muted">Loading reference…</p>}
+      {error && <p className="text-red-400">Failed to load: {error.message}</p>}
+
+      {!loading && !error && (
+        <div className="prose prose-slate max-w-none mt-8
+          prose-headings:text-primary prose-headings:tracking-tight
+          prose-h2:text-[1.5rem] prose-h2:border-b prose-h2:border-border prose-h2:pb-2.5 prose-h2:mt-12 prose-h2:mb-5
+          prose-h3:text-lg prose-h3:mt-8 prose-h3:mb-3
+          prose-p:text-secondary prose-p:leading-relaxed
+          prose-a:text-tertiary prose-a:no-underline prose-a:font-medium hover:prose-a:underline
+          prose-code:before:content-none prose-code:after:content-none
+          prose-pre:bg-transparent prose-pre:p-0 prose-pre:m-0 prose-pre:rounded-none
+          prose-li:text-secondary prose-li:my-0.5
+          prose-strong:text-primary
+          prose-blockquote:border-l-tertiary prose-blockquote:bg-blue-50/50 prose-blockquote:text-secondary prose-blockquote:not-italic prose-blockquote:py-3 prose-blockquote:px-5 prose-blockquote:rounded-r-lg
+          prose-hr:border-border
+          prose-img:rounded-lg
+          prose-th:text-left prose-th:text-primary prose-th:font-semibold prose-th:text-sm
+          prose-td:text-secondary prose-td:text-sm
+          prose-table:border prose-table:border-border
+        ">
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            components={mdComponents()}
+          >
+            {md}
+          </ReactMarkdown>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Docs index ──
 
 function DocsIndex() {
@@ -756,7 +819,7 @@ export default function DocsLayout() {
                 <MarkdownDocPage title="Production Automation with proxcli" file="production-automation.md" icon={Cog} />
               } />
               <Route path="api-coverage" element={
-                <MarkdownDocPage title="API Coverage" file="api-coverage.md" icon={Code2} />
+                <ApiCoveragePage />
               } />
               <Route path="command-reference" element={<CommandReferenceDocInner />} />
             </Routes>

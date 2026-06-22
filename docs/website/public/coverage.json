@@ -1,0 +1,274 @@
+[
+  {
+    "category": "VM lifecycle",
+    "icon": "Server",
+    "total": 28,
+    "done": 28,
+    "groups": [
+      { "name": "CRUD", "done": 6, "total": 6, "items": [
+        {"name": "list", "status": "done"},
+        {"name": "show", "status": "done"},
+        {"name": "create", "status": "done"},
+        {"name": "start", "status": "done"},
+        {"name": "stop", "status": "done"},
+        {"name": "delete", "status": "done"}
+      ]},
+      { "name": "Lifecycle ops", "done": 4, "total": 4, "items": [
+        {"name": "reboot", "status": "done"},
+        {"name": "suspend", "status": "done"},
+        {"name": "resume", "status": "done"},
+        {"name": "config", "status": "done"}
+      ]},
+      { "name": "Snapshots", "done": 5, "total": 5, "items": [
+        {"name": "snapshot list", "status": "done"},
+        {"name": "snapshot create", "status": "done"},
+        {"name": "snapshot show", "status": "done"},
+        {"name": "snapshot rollback", "status": "done"},
+        {"name": "snapshot delete", "status": "done"}
+      ]},
+      { "name": "Advanced", "done": 9, "total": 9, "items": [
+        {"name": "clone", "status": "done"},
+        {"name": "migrate", "status": "done"},
+        {"name": "template", "status": "done"},
+        {"name": "disk resize", "status": "done"},
+        {"name": "disk detach", "status": "done"},
+        {"name": "disk remove", "status": "done"},
+        {"name": "iso attach/detach", "status": "done"},
+        {"name": "ip lookup", "status": "done"},
+        {"name": "cloud-init", "status": "done"}
+      ]},
+      { "name": "Guest agent", "done": 4, "total": 4, "items": [
+        {"name": "agent interfaces", "status": "done"},
+        {"name": "agent osinfo", "status": "done"},
+        {"name": "agent fsinfo", "status": "done"},
+        {"name": "agent users", "status": "done"}
+      ]}
+    ]
+  },
+  {
+    "category": "VM firewall",
+    "icon": "Shield",
+    "total": 10,
+    "done": 10,
+    "groups": [
+      { "name": "Core", "done": 6, "total": 6, "items": [
+        {"name": "options", "status": "done"},
+        {"name": "enable", "status": "done"},
+        {"name": "disable", "status": "done"},
+        {"name": "policy", "status": "done"},
+        {"name": "refs", "status": "done"},
+        {"name": "rules CRUD", "status": "done"}
+      ]}
+    ]
+  },
+  {
+    "category": "Containers",
+    "icon": "Container",
+    "total": 12,
+    "done": 12,
+    "groups": [
+      { "name": "CRUD", "done": 6, "total": 6, "items": [
+        {"name": "list", "status": "done"},
+        {"name": "show", "status": "done"},
+        {"name": "create", "status": "done"},
+        {"name": "start", "status": "done"},
+        {"name": "stop", "status": "done"},
+        {"name": "delete", "status": "done"}
+      ]},
+      { "name": "Firewall", "done": 6, "total": 6, "items": [
+        {"name": "options", "status": "done"},
+        {"name": "enable", "status": "done"},
+        {"name": "disable", "status": "done"},
+        {"name": "policy", "status": "done"},
+        {"name": "refs", "status": "done"},
+        {"name": "rules CRUD", "status": "done"}
+      ]},
+      { "name": "Advanced", "done": 1, "total": 1, "items": [
+        {"name": "ip lookup", "status": "done"}
+      ]}
+    ]
+  },
+  {
+    "category": "Nodes",
+    "icon": "Server",
+    "total": 12,
+    "done": 12,
+    "groups": [
+      { "name": "Read ops", "done": 11, "total": 11, "items": [
+        {"name": "list", "status": "done"},
+        {"name": "show/status", "status": "done"},
+        {"name": "dns", "status": "done"},
+        {"name": "time", "status": "done"},
+        {"name": "services", "status": "done"},
+        {"name": "pci", "status": "done"},
+        {"name": "netstat", "status": "done"},
+        {"name": "config", "status": "done"},
+        {"name": "subscription", "status": "done"},
+        {"name": "network list/show", "status": "done"},
+        {"name": "storage content", "status": "done"}
+      ]},
+      { "name": "Firewall", "done": 6, "total": 6, "items": [
+        {"name": "options", "status": "done"},
+        {"name": "enable", "status": "done"},
+        {"name": "disable", "status": "done"},
+        {"name": "policy", "status": "done"},
+        {"name": "refs", "status": "done"},
+        {"name": "rules CRUD", "status": "done"}
+      ]}
+    ]
+  },
+  {
+    "category": "Storage",
+    "icon": "HardDrive",
+    "total": 5,
+    "done": 5,
+    "groups": [
+      { "name": "Ops", "done": 5, "total": 5, "items": [
+        {"name": "list", "status": "done"},
+        {"name": "show", "status": "done"},
+        {"name": "content", "status": "done"},
+        {"name": "upload", "status": "done"},
+        {"name": "status", "status": "done"}
+      ]}
+    ]
+  },
+  {
+    "category": "Cluster",
+    "icon": "Globe",
+    "total": 6,
+    "done": 6,
+    "groups": [
+      { "name": "Core", "done": 3, "total": 3, "items": [
+        {"name": "status", "status": "done"},
+        {"name": "log", "status": "done"},
+        {"name": "options", "status": "done"}
+      ]},
+      { "name": "Firewall", "done": 10, "total": 10, "items": [
+        {"name": "options", "status": "done"},
+        {"name": "enable", "status": "done"},
+        {"name": "disable", "status": "done"},
+        {"name": "policy", "status": "done"},
+        {"name": "refs", "status": "done"},
+        {"name": "rules CRUD", "status": "done"},
+        {"name": "aliases CRUD", "status": "done"},
+        {"name": "ipsets CRUD", "status": "done"}
+      ]}
+    ]
+  },
+  {
+    "category": "Ceph",
+    "icon": "Database",
+    "total": 4,
+    "done": 4,
+    "groups": [
+      { "name": "Ops", "done": 4, "total": 4, "items": [
+        {"name": "status", "status": "done"},
+        {"name": "osd", "status": "done"},
+        {"name": "log", "status": "done"},
+        {"name": "disks", "status": "done"}
+      ]}
+    ]
+  },
+  {
+    "category": "Backups",
+    "icon": "Shield",
+    "total": 7,
+    "done": 7,
+    "groups": [
+      { "name": "Ops", "done": 6, "total": 6, "items": [
+        {"name": "list", "status": "done"},
+        {"name": "show", "status": "done"},
+        {"name": "create", "status": "done"},
+        {"name": "restore", "status": "done"},
+        {"name": "delete", "status": "done"},
+        {"name": "defaults", "status": "done"}
+      ]}
+    ]
+  },
+  {
+    "category": "Tasks",
+    "icon": "Clock",
+    "total": 4,
+    "done": 4,
+    "groups": [
+      { "name": "Ops", "done": 4, "total": 4, "items": [
+        {"name": "list", "status": "done"},
+        {"name": "show", "status": "done"},
+        {"name": "log", "status": "done"},
+        {"name": "wait", "status": "done"}
+      ]}
+    ]
+  },
+  {
+    "category": "Access control",
+    "icon": "Users",
+    "total": 18,
+    "done": 18,
+    "groups": [
+      { "name": "Users", "done": 5, "total": 5, "items": [
+        {"name": "list", "status": "done"},
+        {"name": "show", "status": "done"},
+        {"name": "create", "status": "done"},
+        {"name": "update", "status": "done"},
+        {"name": "delete", "status": "done"}
+      ]},
+      { "name": "Roles", "done": 5, "total": 5, "items": [
+        {"name": "list", "status": "done"},
+        {"name": "show", "status": "done"},
+        {"name": "create", "status": "done"},
+        {"name": "update", "status": "done"},
+        {"name": "delete", "status": "done"}
+      ]},
+      { "name": "ACLs", "done": 4, "total": 4, "items": [
+        {"name": "list", "status": "done"},
+        {"name": "show", "status": "done"},
+        {"name": "add", "status": "done"},
+        {"name": "delete", "status": "done"}
+      ]},
+      { "name": "Pools", "done": 5, "total": 5, "items": [
+        {"name": "list", "status": "done"},
+        {"name": "show", "status": "done"},
+        {"name": "create", "status": "done"},
+        {"name": "update", "status": "done"},
+        {"name": "delete", "status": "done"}
+      ]},
+      { "name": "Auth", "done": 3, "total": 3, "items": [
+        {"name": "status", "status": "done"},
+        {"name": "setup", "status": "done"},
+        {"name": "check", "status": "done"}
+      ]}
+    ]
+  },
+  {
+    "category": "Not yet",
+    "icon": "Cog",
+    "total": 24,
+    "done": 0,
+    "groups": [
+      { "name": "Cluster", "done": 0, "total": 8, "items": [
+        {"name": "HA status/resources", "status": "todo"},
+        {"name": "SDN (zones/vnets)", "status": "todo"},
+        {"name": "Replication jobs", "status": "todo"},
+        {"name": "ACME certificates", "status": "todo"},
+        {"name": "Metrics server", "status": "todo"},
+        {"name": "Notifications", "status": "todo"},
+        {"name": "Backup info (per-volume)", "status": "todo"},
+        {"name": "Capabilities", "status": "todo"}
+      ]},
+      { "name": "Nodes", "done": 0, "total": 7, "items": [
+        {"name": "USB hardware", "status": "todo"},
+        {"name": "System report", "status": "todo"},
+        {"name": "APT updates", "status": "todo"},
+        {"name": "Journal", "status": "todo"},
+        {"name": "RRD metrics", "status": "todo"},
+        {"name": "Storage scan", "status": "todo"},
+        {"name": "Wake-on-LAN", "status": "todo"}
+      ]},
+      { "name": "Access", "done": 0, "total": 3, "items": [
+        {"name": "Auth domains", "status": "todo"},
+        {"name": "OpenID Connect", "status": "todo"},
+        {"name": "TFA", "status": "todo"}
+      ]}
+    ]
+  }
+]
