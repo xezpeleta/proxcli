@@ -94,7 +94,7 @@ High-impact VM/container workflows that exist in the Proxmox API but are missing
   - Wraps `PUT /nodes/{node}/qemu/{vmid}/resize`.
   - From piclaw: `vm.disk.resize` workflow.
 
-- [ ] **VM disk detach / remove**
+- [x] **VM disk detach / remove**
   - `proxmox vm disk detach <vmid> --disk <disk> [--node <node>]`
   - `proxmox vm disk remove <vmid> --disk <disk> [--force] [--node <node>]`
   - From piclaw: `vm.disk.detach` and `vm.disk.remove` workflows.
@@ -111,7 +111,7 @@ High-impact VM/container workflows that exist in the Proxmox API but are missing
   - `proxmox vm agent users <vmid>` — `GET /nodes/{node}/qemu/{vmid}/agent/get-users`
   - From piclaw: `vm.agent.osinfo`, `vm.agent.fsinfo`, `vm.agent.users` workflows.
 
-- [ ] **Task wait (blocking poll)**
+- [x] **Task wait (blocking poll)**
   - `proxmox task wait <upid> [--timeout <ms>] [--poll <ms>]`
   - Polls task status until completion, useful in scripts. pixlaw has both `task.wait` and `vm.wait_state`.
 

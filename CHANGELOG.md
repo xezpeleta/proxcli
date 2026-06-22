@@ -35,6 +35,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ``fsinfo`` (filesystem info), ``users`` (user accounts), and ``exec``
   (execute a command inside the guest with base64 I/O decoding and result
   polling).
+- **``proxmox vm disk detach/remove``**: detach (keep data) or remove
+  (delete image) a disk from a VM. Wraps ``PUT /nodes/{node}/qemu/{vmid}/config``.
+- **``proxmox task wait <upid>``**: block until a task completes. Polls
+  task status at configurable ``--poll`` intervals with ``--timeout``.
 
 ### Fixed
 - **Test suite**: all 102 tests now pass reliably. Root cause was the `.venv`
