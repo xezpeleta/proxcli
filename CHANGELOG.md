@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **``proxmox vm clone``**: clone a QEMU VM to a new VMID. Supports ``--newid``
+  (required), ``--node``, ``--name``, ``--target-node``, ``--target-storage``,
+  ``--full`` (1=full, 0=linked), ``--description``, and ``--pool``.
+
+### Fixed
+- **Test suite**: all 102 tests now pass reliably. Root cause was the `.venv`
+  referencing the old project path (`proxmox-cli` -> `proxcli`), causing
+  `pytest-httpx` plugin not to load and subprocess tests to fail with
+  `PackageNotFoundError`. Fixed by reinstalling dev dependencies into the
+  current `.venv` and re-registering the editable install.
+
 ## [0.13.1] - 2026-06-21
 
 ### Fixed
