@@ -3,6 +3,7 @@ import { Routes, Route, Link, useLocation } from 'react-router-dom'
 import { Terminal, BookOpen, Shield, Cloud, Bot, Cog, Server, ChevronRight, ArrowLeft, ExternalLink, Code2, Key, FileCode, HardDrive, Network, Globe, Clock, Users, Database, Copy, Check, Zap } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import rehypeRaw from 'rehype-raw'
 import { Light as SyntaxHighlighter } from 'react-syntax-highlighter'
 import bash from 'react-syntax-highlighter/dist/esm/languages/hljs/bash'
 import yaml from 'react-syntax-highlighter/dist/esm/languages/hljs/yaml'
@@ -242,6 +243,7 @@ function MarkdownDocPage({ title, file, icon: Icon, defaultLanguage }) {
         ">
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
+            rehypePlugins={[rehypeRaw]}
             components={mdComponents(defaultLanguage)}
           >
             {md}
@@ -714,6 +716,7 @@ function ApiCoveragePage() {
         ">
           <ReactMarkdown
             remarkPlugins={[remarkGfm]}
+            rehypePlugins={[rehypeRaw]}
             components={mdComponents()}
           >
             {md}
