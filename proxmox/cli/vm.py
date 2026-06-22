@@ -148,6 +148,12 @@ def register_vm_parser(subparsers: argparse._SubParsersAction) -> None:
     iso_detach.add_argument("--node", help="Node name (auto-detected if omitted)")
     iso_detach.set_defaults(func=_vm_iso_detach)
 
+    # --- vm ip ---
+    vm_ip = vm_sub.add_parser("ip", help="Show IP addresses of a VM (requires guest agent)")
+    vm_ip.add_argument("vmid", type=vmid_type, help="VM ID")
+    vm_ip.add_argument("--node", help="Node name (auto-detected if omitted)")
+    vm_ip.set_defaults(func=_vm_ip)
+
     # --- vm config ---
     vm_config = vm_sub.add_parser("config", help="Show VM configuration (clean, suitable for --file import)")
     vm_config.add_argument("vmid", type=vmid_type, help="VM ID")
@@ -695,6 +701,47 @@ def _resolve_iso_volume(client: ProxmoxClient, node: str, iso_name: str) -> str 
             if isinstance(iso, dict) and iso.get("volid", "").endswith(iso_name):
                 return iso["volid"]
     return None
+
+
+def _vm_ip(args: argparse.Namespace, client: ProxmoxClient) -> dict | list:
+    """Show IP addresses of a VM via guest agent.
+
+    Calls the same guest-agent API as ``vm agent interfaces`` but returns a
+    simplified view: interface name -> list of IPs (filtering out loopback
+    and link-local addresses).
+    """
+    node = _resolve_node(client, args.node, args.vmid)
+    if not node:
+        return {"error": f"VM {args.vmid} not found"}
+    result = client.get(f"/nodes/{node}/qemu/{args.vmid}/agent/network-get-interfaces")
+    if not isinstance(result, list):
+        return result if isinstance(result, dict) else {"error": "Unexpected response from guest agent"}
+
+    ips: list[dict[str, Any]] = []
+    for iface in result:
+        if not isinstance(iface, dict):
+            continue
+        name = iface.get("name", "")
+        addrs = iface.get("ip-addresses", [])
+        if not isinstance(addrs, list):
+            continue
+        for addr in addrs:
+            if not isinstance(addr, dict):
+                continue
+            ip = addr.get("ip-address", "")
+            prefix = int(addr.get("prefix", "") or 0)
+            # Skip loopback and link-local
+            if ip.startswith("127.") or ip == "::1" or ip.startswith("fe80:"):
+                continue
+            ips.append({
+                "interface": name,
+                "ip": ip,
+                "prefix": prefix,
+                "address": f"{ip}/{prefix}" if prefix else ip,
+                "_vmid": args.vmid,
+                "_node": node,
+            })
+    return ips if ips else {"message": f"No non-local IPs found for VM {args.vmid}"}
 
 
 def _vm_agent_interfaces(args: argparse.Namespace, client: ProxmoxClient) -> dict | list:
