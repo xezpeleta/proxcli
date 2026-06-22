@@ -89,7 +89,7 @@ High-impact VM/container workflows that exist in the Proxmox API but are missing
 
 ### Priority: LOW
 
-- [ ] **VM disk resize**
+- [x] **VM disk resize**
   - `proxmox vm disk resize <vmid> --disk <disk> --size <+N or N> [--node <node>]`
   - Wraps `PUT /nodes/{node}/qemu/{vmid}/resize`.
   - From piclaw: `vm.disk.resize` workflow.

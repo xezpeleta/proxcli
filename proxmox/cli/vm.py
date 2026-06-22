@@ -220,6 +220,31 @@ def register_vm_parser(subparsers: argparse._SubParsersAction) -> None:
     agent_ifaces.add_argument("--node", help="Node name (auto-detected if omitted)")
     agent_ifaces.set_defaults(func=_vm_agent_interfaces)
 
+    agent_osinfo = agent_sub.add_parser("osinfo", help="Get guest OS information")
+    agent_osinfo.add_argument("vmid", type=vmid_type, help="VM ID")
+    agent_osinfo.add_argument("--node", help="Node name (auto-detected if omitted)")
+    agent_osinfo.set_defaults(func=_vm_agent_osinfo)
+
+    agent_fsinfo = agent_sub.add_parser("fsinfo", help="Get guest filesystem information")
+    agent_fsinfo.add_argument("vmid", type=vmid_type, help="VM ID")
+    agent_fsinfo.add_argument("--node", help="Node name (auto-detected if omitted)")
+    agent_fsinfo.set_defaults(func=_vm_agent_fsinfo)
+
+    agent_users = agent_sub.add_parser("users", help="List guest user accounts")
+    agent_users.add_argument("vmid", type=vmid_type, help="VM ID")
+    agent_users.add_argument("--node", help="Node name (auto-detected if omitted)")
+    agent_users.set_defaults(func=_vm_agent_users)
+
+    agent_exec = agent_sub.add_parser("exec", help="Execute a command in the guest")
+    agent_exec.add_argument("vmid", type=vmid_type, help="VM ID")
+    agent_exec.add_argument("--command", default=None, help="Command to execute")
+    agent_exec.add_argument("--args", default=None, dest="cmd_args",
+                             help="Command arguments (space-separated)")
+    agent_exec.add_argument("--input-data", default=None, dest="input_data",
+                             help="Data to pass to stdin (base64 encoded)")
+    agent_exec.add_argument("--node", help="Node name (auto-detected if omitted)")
+    agent_exec.set_defaults(func=_vm_agent_exec)
+
     # --- cloudinit ---
     cloudinit = vm_sub.add_parser("cloudinit", help="Manage cloud-init")
     cloudinit_sub = cloudinit.add_subparsers(dest="cloudinit_action", title="cloud-init actions", required=True)
@@ -787,6 +812,97 @@ def _vm_agent_interfaces(args: argparse.Namespace, client: ProxmoxClient) -> dic
                 iface["_node"] = node
                 iface["_vmid"] = args.vmid
     return result
+
+
+def _vm_agent_osinfo(args: argparse.Namespace, client: ProxmoxClient) -> dict:
+    """Get guest OS information.
+
+    Wraps ``GET /nodes/{node}/qemu/{vmid}/agent/get-osinfo``.
+    """
+    node = _resolve_node(client, args.node, args.vmid)
+    if not node:
+        return {"error": f"VM {args.vmid} not found"}
+    return client.get(f"/nodes/{node}/qemu/{args.vmid}/agent/get-osinfo")
+
+
+def _vm_agent_fsinfo(args: argparse.Namespace, client: ProxmoxClient) -> dict:
+    """Get guest filesystem information.
+
+    Wraps ``GET /nodes/{node}/qemu/{vmid}/agent/get-fsinfo``.
+    """
+    node = _resolve_node(client, args.node, args.vmid)
+    if not node:
+        return {"error": f"VM {args.vmid} not found"}
+    return client.get(f"/nodes/{node}/qemu/{args.vmid}/agent/get-fsinfo")
+
+
+def _vm_agent_users(args: argparse.Namespace, client: ProxmoxClient) -> dict:
+    """List guest user accounts.
+
+    Wraps ``GET /nodes/{node}/qemu/{vmid}/agent/get-users``.
+    """
+    node = _resolve_node(client, args.node, args.vmid)
+    if not node:
+        return {"error": f"VM {args.vmid} not found"}
+    return client.get(f"/nodes/{node}/qemu/{args.vmid}/agent/get-users")
+
+
+def _vm_agent_exec(args: argparse.Namespace, client: ProxmoxClient) -> dict:
+    """Execute a command inside the guest via QEMU guest agent.
+
+    Wraps ``POST /nodes/{node}/qemu/{vmid}/agent/exec`` and polls for
+    the result via ``GET /nodes/{node}/qemu/{vmid}/agent/exec-status``.
+    """
+    import base64
+
+    node = _resolve_node(client, args.node, args.vmid)
+    if not node:
+        return {"error": f"VM {args.vmid} not found"}
+
+    if not args.command:
+        return {"error": "--command is required for agent exec"}
+
+    cmd_parts = [args.command]
+    if args.cmd_args:
+        cmd_parts.extend(args.cmd_args.split())
+
+    # Base64-encode command args as Proxmox expects
+    encoded = base64.b64encode(" ".join(cmd_parts).encode()).decode()
+    data = {"command": encoded}
+    if args.input_data:
+        data["input-data"] = args.input_data
+
+    # Step 1: initiate exec, get PID
+    init = client.post(f"/nodes/{node}/qemu/{args.vmid}/agent/exec", data=data)
+    pid = init.get("pid") if isinstance(init, dict) else None
+    if not pid:
+        return {"error": "Failed to start command in guest", "detail": init}
+
+    # Step 2: poll for result
+    import time
+    for _ in range(60):  # 30 second timeout at 500ms intervals
+        status = client.get(
+            f"/nodes/{node}/qemu/{args.vmid}/agent/exec-status",
+            params={"pid": pid},
+        )
+        if isinstance(status, dict) and status.get("exited"):
+            # Decode output
+            out_raw = status.get("out-data", "")
+            err_raw = status.get("err-data", "")
+            if out_raw:
+                try:
+                    status["out-data"] = base64.b64decode(out_raw).decode()
+                except Exception:
+                    pass
+            if err_raw:
+                try:
+                    status["err-data"] = base64.b64decode(err_raw).decode()
+                except Exception:
+                    pass
+            return {"data": status, "vmid": args.vmid, "_node": node}
+        time.sleep(0.5)
+
+    return {"error": "Command timed out after 30 seconds", "pid": pid}
 
 
 # ---------------------------------------------------------------------------
