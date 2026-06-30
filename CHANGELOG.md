@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.15.0] - 2026-06-30
+
+### Added
+- **``proxmox vm set``**: update VM configuration keys. Wraps
+  ``PUT /nodes/{node}/qemu/{vmid}/config``. Supports ``--ipconfig0``–``--ipconfig3``,
+  ``--ciuser``, ``--cipassword``, ``--sshkeys``, ``--nameserver``,
+  ``--searchdomain``, ``--cicustom``, and arbitrary ``--option key=value`` pairs.
+  Complements ``vm clone`` and ``vm template`` for full cloud-init template workflows.
+- **``proxmox api``**: make raw authenticated API calls for endpoints not yet
+  covered by dedicated subcommands. Supports ``GET``, ``POST``, ``PUT``, ``DELETE``
+  with ``--data`` (inline JSON), ``--data-file`` (JSON file), or stdin piping.
+  Reuses the same authentication as the rest of proxcli — no more ``curl`` with
+  manual tokens.
+
+### Changed
+- **Docs deduplication**: ``docs/*.md`` is now the single source of truth.
+  Removed ``docs/website/public/docs/`` (stale duplicate) and the ``copyDocsPlugin``
+  from ``vite.config.js``. Added ``serveDocsPlugin`` middleware for dev mode.
+- **``docs/cloud-init.md``**: added "Reusable Cloud-Init Template" guide covering
+  the full workflow (upload → create → template → clone → customize) entirely
+  with proxcli commands.
+- **``docs/production-automation.md``**: replaced curl-based template conversion
+  with ``proxmox vm template``.
+- **``docs/quickstart.md``**: added "Raw API calls" section.
+
 ## [0.14.0] - 2026-06-22
 
 ### Added
@@ -308,6 +333,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CSRF ticket auto-refresh on 401.
 - AI-agent-friendly: default JSON output, strict exit codes, `--dry-run` mode.
 
+[0.15.0]: https://github.com/xezpeleta/proxcli/releases/tag/v0.15.0
 [0.14.0]: https://github.com/xezpeleta/proxcli/releases/tag/v0.14.0
 [0.13.1]: https://github.com/xezpeleta/proxcli/releases/tag/v0.13.1
 [0.13.0]: https://github.com/xezpeleta/proxcli/releases/tag/v0.13.0
