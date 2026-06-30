@@ -186,6 +186,17 @@ def register_vm_parser(subparsers: argparse._SubParsersAction) -> None:
     vm_disk = vm_sub.add_parser("disk", help="Manage VM disks")
     disk_sub = vm_disk.add_subparsers(dest="disk_action", title="disk actions", required=True)
 
+    disk_import = disk_sub.add_parser("import", help="Import a disk image into a VM")
+    disk_import.add_argument("vmid", type=vmid_type, help="VM ID")
+    disk_import.add_argument("--node", help="Node name (auto-detected if omitted)")
+    disk_import.add_argument("--disk", default="scsi0", help="Disk slot to attach to (default: scsi0)")
+    disk_import.add_argument("--storage", default=None, help="Target storage (default: rbd_ssd)")
+    disk_import.add_argument("--image", default=None, dest="image",
+                              help="Path to disk image on the PVE node (e.g. /var/lib/vz/import/deb13.qcow2)")
+    disk_import.add_argument("--url", default=None, dest="image_url",
+                              help="URL to download the disk image from (downloads locally, uploads to PVE, then imports)")
+    disk_import.set_defaults(func=_vm_disk_import)
+
     disk_resize = disk_sub.add_parser("resize", help="Resize a VM disk")
     disk_resize.add_argument("vmid", type=vmid_type, help="VM ID")
     disk_resize.add_argument("--disk", required=True, help="Disk to resize (e.g. scsi0, virtio0)")
@@ -564,6 +575,13 @@ def _vm_create(args: argparse.Namespace, client: ProxmoxClient) -> dict:
     if has_cloudinit and not has_cdrom:
         data["ide2"] = "local:cloudinit,media=cdrom"
 
+    # Auto-configure serial console and VGA for cloud-init VMs
+    if has_cloudinit:
+        if not data.get("serial0"):
+            data["serial0"] = "socket"
+        if not data.get("vga"):
+            data["vga"] = "serial0"
+
     # Validate required fields
     if "memory" not in data:
         return {"error": "--memory is required (or set 'memory:' in the spec file)"}
@@ -883,6 +901,107 @@ def _vm_ip(args: argparse.Namespace, client: ProxmoxClient) -> dict | list:
                 "_node": node,
             })
     return ips if ips else {"message": f"No non-local IPs found for VM {args.vmid}"}
+
+
+def _vm_disk_import(args: argparse.Namespace, client: ProxmoxClient) -> dict:
+    """Import a disk image into an existing VM.
+
+    Supports two sources:
+    - ``--image``: a path to a disk image already on the PVE node
+      (e.g. /var/lib/vz/import/deb13.qcow2).
+    - ``--url``: downloads the image locally, uploads it to PVE storage,
+      then imports it — all in one command.
+
+    Wraps ``PUT /nodes/{node}/qemu/{vmid}/config`` with
+    ``{disk}: {storage}:0,import-from={path}``.
+    """
+    import os
+    import tempfile
+    import urllib.request
+    import urllib.error
+
+    node = _resolve_node(client, args.node, args.vmid)
+    if not node:
+        return {"error": f"VM {args.vmid} not found"}
+
+    if not args.image and not args.image_url:
+        return {"error": "Either --image or --url is required"}
+    if args.image and args.image_url:
+        return {"error": "Only one of --image or --url can be specified"}
+
+    disk_slot = args.disk
+    storage = args.storage or "rbd_ssd"
+
+    def _do_import(image_path: str) -> dict:
+        """Attach the disk via import-from and return result."""
+        import_raw = f"{storage}:0,import-from={image_path}"
+        encoded = import_raw.replace("=", "%3D").replace(":", "%3A").replace(",", "%2C")
+
+        from urllib.parse import urlencode
+        body = urlencode({disk_slot: encoded}, safe="%")
+
+        result = client.request("PUT", f"/nodes/{node}/qemu/{args.vmid}/config", content=body)
+        if isinstance(result, dict) and "data" not in result and "error" not in result:
+            result = {"data": result, "vmid": args.vmid, "disk": disk_slot, "image": image_path, "_node": node}
+        return result
+
+    # --- Option A: local image path on PVE node ---
+    if args.image:
+        return _do_import(args.image)
+
+    # --- Option B: URL download + upload + import ---
+    url = args.image_url
+    tmp_path = None
+
+    try:
+        # 1. Download to a temporary file
+        fname = url.rsplit("/", 1)[-1].split("?")[0] or "disk-image.qcow2"
+        with tempfile.NamedTemporaryFile(suffix=f"-{fname}", delete=False) as tmp:
+            tmp_path = tmp.name
+
+        print(f"Downloading {url} ...")
+        try:
+            urllib.request.urlretrieve(url, tmp_path)
+        except urllib.error.URLError as exc:
+            if tmp_path and os.path.isfile(tmp_path):
+                os.unlink(tmp_path)
+            return {"error": f"Failed to download image: {exc}"}
+
+        file_size = os.path.getsize(tmp_path)
+        print(f"Downloaded {fname} ({file_size} bytes)")
+
+        # 2. Upload to PVE storage as 'import' content
+        print(f"Uploading to node {node}, storage {storage} ...")
+        try:
+            upload_result = client.upload(
+                node=node,
+                storage=storage,
+                file_path=tmp_path,
+                content_type="import",
+            )
+        except Exception as exc:
+            return {"error": f"Failed to upload image: {exc}"}
+
+        # Determine the volid from upload response
+        volid = None
+        if isinstance(upload_result, dict):
+            volid = upload_result.get("volid") or upload_result.get("data", {}).get("volid")
+        if not volid:
+            # Fallback: construct volid from storage + filename
+            volid = f"{storage}:import/{fname}"
+
+        print(f"Uploaded as {volid}")
+
+        # 3. Import the uploaded image into the VM
+        print(f"Importing {volid} as {disk_slot} into VM {args.vmid} ...")
+        result = _do_import(volid)
+
+        return {"vmid": args.vmid, "disk": disk_slot, "image": volid, "_node": node, "data": result}
+
+    finally:
+        # Clean up temp file
+        if tmp_path and os.path.isfile(tmp_path):
+            os.unlink(tmp_path)
 
 
 def _vm_disk_resize(args: argparse.Namespace, client: ProxmoxClient) -> dict:

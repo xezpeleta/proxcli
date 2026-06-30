@@ -27,6 +27,8 @@ Completed items are marked with a check. Implementation notes are preserved for 
 - [x] **Cluster log & options** — `proxmox cluster log [--limit N]` and `proxmox cluster options`.
 - [x] **Storage status** — `proxmox storage status <storage> [--node]` for usage stats.
 - [x] **API coverage doc** — `docs/api-coverage.md` tracking all implemented and remaining endpoints.
+- [x] **VM disk import from URL** — `vm disk import --url` downloads, uploads, and imports a disk image from a remote URL in one command. `--image` for local PVE node paths.
+- [x] **Cloud-init auto serial console** — `vm create` with cloud-init flags now auto-adds `serial0=socket` and `vga=serial0`, required by Debian generic cloud images.
 
 ## v1.1 — Polish & Usability
 

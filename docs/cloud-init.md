@@ -386,6 +386,8 @@ Stable release URLs follow the pattern:
 
 The `/latest/` symlink always points to the most recent weekly build.
 
+**Option A — Download & upload manually:**
+
 ```bash
 # Download (run on a Proxmox node or any machine with proxcli)
 curl -LO https://cloud.debian.org/images/cloud/trixie/latest/debian-13-generic-amd64.qcow2
@@ -401,6 +403,18 @@ proxmox storage upload \
 proxmox storage content local --node <node>
 # Look for: local:import/debian-13-generic-amd64.qcow2
 ```
+
+**Option B — Use `vm disk import --url` (download + upload + import in one command):**
+
+```bash
+# After creating the VM skeleton, import directly from URL:
+proxmox vm disk import <template-vmid> \
+  --url https://cloud.debian.org/images/cloud/trixie/latest/debian-13-generic-amd64.qcow2 \
+  --storage rbd_ssd
+```
+
+This handles downloading, uploading to PVE storage, and importing the disk in a single command.
+The temporary file is cleaned up automatically.
 
 ### Step 2: Create the VM with cloud-init (stopped)
 
@@ -481,8 +495,9 @@ SSH keys).
 
 ```bash
 # --- One-time setup ---
-curl -LO https://cloud.debian.org/images/cloud/trixie/latest/debian-13-generic-amd64.qcow2
 
+# Option A: Manual download + upload + create
+curl -LO https://cloud.debian.org/images/cloud/trixie/latest/debian-13-generic-amd64.qcow2
 proxmox storage upload \
   --node pve01 --storage local --content-type import \
   --file debian-13-generic-amd64.qcow2
@@ -496,6 +511,20 @@ proxmox vm create \
   --citype nocloud --ciuser debian \
   --sshkeys ~/.ssh/id_rsa.pub \
   --import-from local:import/debian-13-generic-amd64.qcow2
+
+# Option B: One-liner with --url (no manual download needed)
+proxmox vm create \
+  --node pve01 --vmid 9003 \
+  --name debian13-cloud-template \
+  --memory 2048 --cores 2 \
+  --net 'virtio,bridge=vmbr0' \
+  --scsihw virtio-scsi-pci \
+  --citype nocloud --ciuser debian \
+  --sshkeys ~/.ssh/id_rsa.pub
+proxmox vm disk import 9003 \
+  --url https://cloud.debian.org/images/cloud/trixie/latest/debian-13-generic-amd64.qcow2 \
+  --storage rbd_ssd
+proxmox vm set 9003 --option boot=order=scsi0
 
 proxmox vm template 9003 --node pve01
 

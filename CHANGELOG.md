@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.16.0] - 2026-06-30
+
+### Added
+- **``proxmox vm disk import``**: import a disk image into an existing VM.
+  Supports two sources:
+  - ``--image <path>``: a disk image already on the PVE node filesystem
+    (e.g. ``/var/lib/vz/import/deb13.qcow2``).
+  - ``--url <url>``: downloads the image locally, uploads it to Proxmox
+    storage via the API, then imports it into the VM — all in one command.
+    The temp file is cleaned up automatically.  Wraps
+    ``PUT /nodes/{node}/qemu/{vmid}/config`` with `import-from`.
+- **Cloud-init auto-config**: ``vm create`` now automatically adds
+  ``serial0=socket`` and ``vga=serial0`` when any cloud-init flags
+  (``--citype``, ``--ciuser``, etc.) are present.  This matches the
+  official Proxmox documentation and is required by Debian generic
+  cloud images.
+
+### Changed
+- **Docs**: added ``vm disk import`` to README command reference;
+  updated ``docs/cloud-init.md`` with ``--url`` import workflow;
+  updated ``docs/production-automation.md`` with the new commands.
+
 ## [0.15.0] - 2026-06-30
 
 ### Added

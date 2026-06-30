@@ -156,7 +156,7 @@ jobs:
           PROXMOX_TOKEN_ID: ${{ secrets.PROXMOX_TOKEN_ID }}
           PROXMOX_TOKEN_SECRET: ${{ secrets.PROXMOX_TOKEN_SECRET }}
         run: |
-          proxmox auth login
+          proxmox auth status
           for spec in vm-specs/*.yaml; do
             proxmox vm create --file "$spec"
           done

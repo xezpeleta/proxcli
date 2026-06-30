@@ -228,6 +228,13 @@ proxmox vm firewall rules show <vmid> <pos>
 proxmox vm firewall rules update <vmid> <pos> --action DROP
 proxmox vm firewall rules delete <vmid> <pos>
 proxmox vm firewall refs <vmid> [--type alias|ipset|group]
+
+# VM disk management
+proxmox vm disk import <vmid> --image /path/to/image.qcow2 [--disk scsi0] [--storage rbd_ssd]
+proxmox vm disk import <vmid> --url https://.../image.qcow2 [--disk scsi0] [--storage rbd_ssd]
+proxmox vm disk resize <vmid> --disk scsi0 --size +10G
+proxmox vm disk detach <vmid> --disk scsi0
+proxmox vm disk remove <vmid> --disk scsi0 [--force]
 ```
 
 #### Declarative VM specs (`--file`)
