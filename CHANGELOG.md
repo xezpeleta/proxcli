@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.16.0] - 2026-06-30
+## [0.16.1] - 2026-06-30
 
 ### Added
 - **``proxmox vm disk import``**: import a disk image into an existing VM.
@@ -27,7 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   updated ``docs/cloud-init.md`` with ``--url`` import workflow;
   updated ``docs/production-automation.md`` with the new commands.
 
-## [0.15.0] - 2026-06-30
+## [0.16.0] - 2026-06-30
 
 ### Added
 - **``proxmox vm set``**: update VM configuration keys. Wraps
@@ -355,6 +355,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CSRF ticket auto-refresh on 401.
 - AI-agent-friendly: default JSON output, strict exit codes, `--dry-run` mode.
 
+[0.16.1]: https://github.com/xezpeleta/proxcli/releases/tag/v0.16.1
+[0.16.0]: https://github.com/xezpeleta/proxcli/releases/tag/v0.16.0
 [0.15.0]: https://github.com/xezpeleta/proxcli/releases/tag/v0.15.0
 [0.14.0]: https://github.com/xezpeleta/proxcli/releases/tag/v0.14.0
 [0.13.1]: https://github.com/xezpeleta/proxcli/releases/tag/v0.13.1
