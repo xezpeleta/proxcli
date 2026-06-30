@@ -111,8 +111,8 @@ proxmox vm create \
 
 # 2. (Optional) Start, configure packages, then stop
 
-# 3. Convert to template (via Proxmox UI or API)
-# curl -X POST .../nodes/pve01/qemu/9000/template
+# 3. Convert to template
+proxmox vm template 9000 --node pve01
 
 # 4. Clone the template for new VMs
 proxmox vm create \

@@ -163,12 +163,21 @@ The output includes:
 
 ### Updating cloud-init configuration
 
-After the VM is created, you can update cloud-init parameters using
-`PUT /nodes/{node}/qemu/{vmid}/config` (no dedicated proxcli command yet):
+After the VM is created, use `vm set` to update cloud-init parameters:
 
 ```bash
-# Currently via curl; a proxcli vm update command is planned
-# This triggers automatic cloud-init ISO regeneration in Proxmox VE 9
+proxmox vm set <vmid> --node <node> \
+  --ciuser debian \
+  --sshkeys ~/.ssh/new_key.pub \
+  --ipconfig0 "ip=192.168.1.100/24,gw=192.168.1.1"
+```
+
+Any Proxmox config key can be set via `--option key=value`:
+
+```bash
+proxmox vm set <vmid> --node <node> \
+  --option memory=4096 \
+  --option description="Updated via proxcli"
 ```
 
 In Proxmox VE 9+, the cloud-init ISO is **regenerated automatically** whenever
@@ -324,3 +333,180 @@ proxmox vm show <vmid>
 
 If missing, the cloud-init drive wasn't created.  This happens when no
 cloud-init flags (`--ciuser`, `--citype`, etc.) are passed to `vm create`.
+
+---
+
+## Creating a Reusable Cloud-Init Template
+
+Instead of creating VMs one-by-one from a cloud image, you can build a
+**template** — a preconfigured, stopped VM marked as a template — and then
+clone it repeatedly.  Each clone gets its own cloud-init drive, so you can
+set per-VM hostnames, IPs, and SSH keys at clone time.
+
+### The workflow at a glance
+
+```
+upload image  →  vm create (cloud-init, stopped)  →  vm template  →  vm clone (×N)
+```
+
+### Step 1: Download and upload the cloud image
+
+Pick the Debian `generic` variant — it includes full hardware driver support
+and works with any cloud-init environment, including Proxmox.
+
+| Variant | Use case | Size (qcow2) |
+|---------|----------|--------------|
+| `generic` | Proxmox, OpenStack, bare metal. Full driver support. | ~415 MiB |
+| `genericcloud` | Same as generic, but fewer kernel drivers. Smaller image. | ~325 MiB |
+
+Stable release URLs follow the pattern:
+`https://cloud.debian.org/images/cloud/<release>/latest/debian-<version>-generic-amd64.qcow2`
+
+The `/latest/` symlink always points to the most recent weekly build.
+
+```bash
+# Download (run on a Proxmox node or any machine with proxcli)
+curl -LO https://cloud.debian.org/images/cloud/trixie/latest/debian-13-generic-amd64.qcow2
+
+# Upload as an import volume
+proxmox storage upload \
+  --node <node> \
+  --storage local \
+  --content-type import \
+  --file debian-13-generic-amd64.qcow2
+
+# Verify it's there
+proxmox storage content local --node <node>
+# Look for: local:import/debian-13-generic-amd64.qcow2
+```
+
+### Step 2: Create the VM with cloud-init (stopped)
+
+```bash
+proxmox vm create \
+  --node <node> \
+  --vmid <template-vmid> \
+  --name debian-trixie-cloudinit-template \
+  --memory 2048 \
+  --cores 2 \
+  --net 'virtio,bridge=vmbr0' \
+  --scsihw virtio-scsi-pci \
+  --boot order=scsi0 \
+  --citype nocloud \
+  --ciuser debian \
+  --sshkeys ~/.ssh/id_rsa.pub \
+  --import-from local:import/debian-13-generic-amd64.qcow2
+```
+
+> **Important**: Do **not** start the VM before converting to a template.
+> The VM stays stopped after `vm create` unless you pass `--start`
+> (not yet implemented in proxcli).
+
+Key points:
+- `--vmid`: pick a dedicated ID range for templates (e.g., 9000–9999).
+- `--ciuser debian`: the default user on Debian cloud images is `debian`.
+- `--sshkeys`: SSH keys set here become the **default** keys for clones.
+  Each clone can override them.
+
+### Step 3: Convert to template
+
+```bash
+proxmox vm template <template-vmid> --node <node>
+```
+
+This marks the VM as a template.  It can no longer be started directly —
+only cloned.
+
+### Step 4: Clone from the template
+
+```bash
+proxmox vm clone <template-vmid> \
+  --newid <new-vmid> \
+  --name my-new-debian-vm \
+  --full 1
+```
+
+- `--full 1`: always use full clones (independent disks).  Linked clones
+  (`--full 0`) require the template disk to remain untouched.
+- `--target-node`: clone to a different node if needed.
+- `--target-storage`: place the clone's disk on a specific storage.
+
+### Step 5: Customize the clone before first boot
+
+After cloning, set per-VM cloud-init parameters with `vm set`:
+
+```bash
+# Set a static IP (optional — DHCP is the default)
+proxmox vm set <new-vmid> --node <node> --ipconfig0 "ip=192.168.1.50/24,gw=192.168.1.1"
+
+# Add a VM-specific SSH key
+proxmox vm set <new-vmid> --node <node> --sshkeys ~/.ssh/id_rsa.pub
+
+# Regenerate the cloud-init ISO with the new settings
+proxmox vm cloudinit generate <new-vmid> --node <node>
+```
+
+Then start it:
+
+```bash
+proxmox vm start <new-vmid>
+```
+
+On first boot, cloud-init applies the VM-specific settings (hostname, IP,
+SSH keys).
+
+### Example: Debian 13 template + two clones
+
+```bash
+# --- One-time setup ---
+curl -LO https://cloud.debian.org/images/cloud/trixie/latest/debian-13-generic-amd64.qcow2
+
+proxmox storage upload \
+  --node pve01 --storage local --content-type import \
+  --file debian-13-generic-amd64.qcow2
+
+proxmox vm create \
+  --node pve01 --vmid 9003 \
+  --name debian13-cloud-template \
+  --memory 2048 --cores 2 \
+  --net 'virtio,bridge=vmbr0' \
+  --scsihw virtio-scsi-pci --boot order=scsi0 \
+  --citype nocloud --ciuser debian \
+  --sshkeys ~/.ssh/id_rsa.pub \
+  --import-from local:import/debian-13-generic-amd64.qcow2
+
+proxmox vm template 9003 --node pve01
+
+# --- Clone for each new VM (repeat as needed) ---
+
+# Web server
+proxmox vm clone 9003 --newid 201 --name web01 --full 1
+proxmox vm set 201 --node pve01 --ipconfig0 "ip=10.0.0.51/24,gw=10.0.0.1"
+proxmox vm cloudinit generate 201
+proxmox vm start 201
+
+# Database server
+proxmox vm clone 9003 --newid 202 --name db01 --full 1
+proxmox vm set 202 --node pve01 --ipconfig0 "ip=10.0.0.52/24,gw=10.0.0.1"
+proxmox vm cloudinit generate 202
+proxmox vm start 202
+```
+
+### Updating the template
+
+To refresh the template with a newer Debian build:
+
+```bash
+# 1. Download and upload the new image
+curl -LO https://cloud.debian.org/images/cloud/trixie/latest/debian-13-generic-amd64.qcow2
+proxmox storage upload --node pve01 --storage local --content-type import \
+  --file debian-13-generic-amd64.qcow2
+
+# 2. Delete the old template
+proxmox vm delete 9003 --node pve01
+
+# 3. Recreate with the new image (same vmid, same name)
+#    ... repeat step 2 above ...
+```
+
+Existing clones are unaffected — full clones have independent disks.

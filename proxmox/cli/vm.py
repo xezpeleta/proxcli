@@ -132,6 +132,34 @@ def register_vm_parser(subparsers: argparse._SubParsersAction) -> None:
     vm_template.add_argument("--node", help="Node name (auto-detected if omitted)")
     vm_template.set_defaults(func=_vm_template)
 
+    # --- vm set ---
+    vm_set = vm_sub.add_parser("set", help="Update VM configuration keys")
+    vm_set.add_argument("vmid", type=vmid_type, help="VM ID")
+    vm_set.add_argument("--node", help="Node name (auto-detected if omitted)")
+    vm_set.add_argument("--ipconfig0", default=None, dest="ipconfig0",
+                         help="Cloud-init IP config for net0 (e.g. ip=dhcp or ip=10.0.0.1/24,gw=10.0.0.254)")
+    vm_set.add_argument("--ipconfig1", default=None, dest="ipconfig1",
+                         help="Cloud-init IP config for net1")
+    vm_set.add_argument("--ipconfig2", default=None, dest="ipconfig2",
+                         help="Cloud-init IP config for net2")
+    vm_set.add_argument("--ipconfig3", default=None, dest="ipconfig3",
+                         help="Cloud-init IP config for net3")
+    vm_set.add_argument("--ciuser", default=None,
+                         help="Cloud-init default user")
+    vm_set.add_argument("--cipassword", default=None,
+                         help="Cloud-init default password")
+    vm_set.add_argument("--sshkeys", default=None,
+                         help="Cloud-init SSH public keys (file path or inline)")
+    vm_set.add_argument("--nameserver", default=None,
+                         help="Cloud-init DNS server")
+    vm_set.add_argument("--searchdomain", default=None,
+                         help="Cloud-init DNS search domain")
+    vm_set.add_argument("--cicustom", default=None,
+                         help="Cloud-init custom config (user=...,vendor=...)")
+    vm_set.add_argument("--option", default=None, action="append", dest="options",
+                         help="Arbitrary config key=value (repeatable). e.g. --option memory=8192 --option cores=4")
+    vm_set.set_defaults(func=_vm_set)
+
     # --- vm iso ---
     vm_iso = vm_sub.add_parser("iso", help="Attach or detach an ISO image to a VM")
     iso_sub = vm_iso.add_subparsers(dest="iso_action", title="iso actions", required=True)
@@ -681,6 +709,62 @@ def _vm_template(args: argparse.Namespace, client: ProxmoxClient) -> dict:
         return {"error": f"VM {args.vmid} not found"}
 
     result = client.post(f"/nodes/{node}/qemu/{args.vmid}/template")
+    if isinstance(result, dict) and "data" not in result and "error" not in result:
+        result = {"data": result, "vmid": args.vmid, "_node": node}
+    return result
+
+
+def _vm_set(args: argparse.Namespace, client: ProxmoxClient) -> dict:
+    """Update VM configuration keys.
+
+    Wraps ``PUT /nodes/{node}/qemu/{vmid}/config``.
+    """
+    node = _resolve_node(client, args.node, args.vmid)
+    if not node:
+        return {"error": f"VM {args.vmid} not found"}
+
+    data: dict[str, str] = {}
+
+    # Cloud-init: ipconfig
+    for i in range(4):
+        val = getattr(args, f"ipconfig{i}", None)
+        if val is not None:
+            data[f"ipconfig{i}"] = val
+
+    # Cloud-init user / password / sshkeys
+    if args.ciuser is not None:
+        data["ciuser"] = args.ciuser
+    if args.cipassword is not None:
+        data["cipassword"] = args.cipassword
+    if args.sshkeys is not None:
+        try:
+            with open(args.sshkeys) as f:
+                data["sshkeys"] = f.read().strip()
+        except (OSError, FileNotFoundError):
+            data["sshkeys"] = args.sshkeys
+    if args.nameserver is not None:
+        data["nameserver"] = args.nameserver
+    if args.searchdomain is not None:
+        data["searchdomain"] = args.searchdomain
+    if args.cicustom is not None:
+        data["cicustom"] = args.cicustom
+
+    # Arbitrary --option key=value pairs
+    if args.options:
+        for opt in args.options:
+            if "=" not in opt:
+                return {"error": f"Invalid --option format: '{opt}'. Expected key=value."}
+            key, _, value = opt.partition("=")
+            data[key.strip()] = value.strip()
+
+    if not data:
+        return {"error": "No configuration keys provided. Use --ipconfig0, --ciuser, --option key=value, etc."}
+
+    # Build form-encoded body
+    from urllib.parse import urlencode
+    body = urlencode(data, safe="%")
+
+    result = client.request("PUT", f"/nodes/{node}/qemu/{args.vmid}/config", content=body)
     if isinstance(result, dict) and "data" not in result and "error" not in result:
         result = {"data": result, "vmid": args.vmid, "_node": node}
     return result
