@@ -126,3 +126,25 @@ proxmox vm list --output table --columns vmid name status mem
     for AI agents.
 -   [Production Automation](#/docs/production) — Shell scripting,
     CI/CD, and monitoring patterns.
+
+## Raw API calls
+
+For Proxmox endpoints not yet covered by dedicated subcommands, use
+`proxmox api` to make authenticated direct API calls:
+
+```bash
+# GET
+proxmox api GET /nodes/pve01/status
+
+# PUT with JSON body
+proxmox api PUT /nodes/pve01/qemu/100/config -d '{"memory": 4096}'
+
+# POST from file
+proxmox api POST /nodes/pve01/qemu -f vm-spec.json
+
+# Pipe from stdin
+echo '{"memory": 4096}' | proxmox api PUT /nodes/pve01/qemu/100/config
+```
+
+This reuses the same authentication as the rest of proxcli — no need to manage
+API tokens manually with `curl`.

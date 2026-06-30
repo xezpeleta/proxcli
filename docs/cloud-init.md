@@ -305,6 +305,28 @@ runcmd:
 
 ---
 
+## Raw API fallback
+
+For Proxmox endpoints not covered by dedicated subcommands (e.g., bulk
+operations, advanced config keys), use `proxmox api` to make authenticated
+direct API calls:
+
+```bash
+# Read VM config
+proxmox api GET /nodes/pve01/qemu/100/config
+
+# Update any config key
+proxmox api PUT /nodes/pve01/qemu/100/config -d '{"description": "web server"}'
+
+# Create resources
+proxmox api POST /nodes/pve01/qemu -f vm-spec.json
+```
+
+The `api` subcommand reuses the same authentication and TLS settings as the
+rest of proxcli — no need to manage API tokens with `curl`.
+
+---
+
 ## Troubleshooting
 
 ### "storage does not support 'import' content"
