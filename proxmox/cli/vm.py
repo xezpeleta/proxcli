@@ -295,6 +295,14 @@ def register_vm_parser(subparsers: argparse._SubParsersAction) -> None:
     ci_generate.add_argument("--node", help="Node name (auto-detected if omitted)")
     ci_generate.set_defaults(func=_vm_cloudinit_generate)
 
+    ci_dump = cloudinit_sub.add_parser("dump", help="Dump generated cloud-init config")
+    ci_dump.add_argument("vmid", type=vmid_type, help="VM ID")
+    ci_dump.add_argument("--node", help="Node name (auto-detected if omitted)")
+    ci_dump.add_argument("--type", dest="cloudinit_type", default="user",
+                          choices=["user", "meta", "network"],
+                          help="Config type to dump (default: user)")
+    ci_dump.set_defaults(func=_vm_cloudinit_dump)
+
     # --- firewall ---
     fw = vm_sub.add_parser("firewall", help="Manage VM firewall")
     fw_sub = fw.add_subparsers(dest="fw_resource", title="resources", required=True)
@@ -1061,6 +1069,27 @@ def _vm_cloudinit_generate(args: argparse.Namespace, client: ProxmoxClient) -> d
         data={"citype": citype},
     )
     return {"data": result} if isinstance(result, (str, type(None))) or not isinstance(result, dict) else result
+
+
+def _vm_cloudinit_dump(args: argparse.Namespace, client: ProxmoxClient) -> str:
+    """Dump generated cloud-init config for inspection.
+
+    Returns the raw cloud-init YAML as a string (not wrapped in a dict),
+    so the main CLI knows to print it directly without JSON/YAML formatting.
+    """
+    node = _resolve_node(client, args.node, args.vmid)
+    if not node:
+        return "Error: VM not found"
+    result = client.get(
+        f"/nodes/{node}/qemu/{args.vmid}/cloudinit/dump",
+        params={"type": args.cloudinit_type},
+    )
+    if isinstance(result, str):
+        return result
+    if isinstance(result, dict):
+        # API returned structured data (shouldn't happen, but be safe)
+        return result.get("data", str(result))
+    return str(result)
 
 
 # ---------------------------------------------------------------------------

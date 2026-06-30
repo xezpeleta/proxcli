@@ -323,10 +323,18 @@ def main(argv: list[str] | None = None) -> None:
         if hasattr(args, "func"):
             result = args.func(args, client)
             if result is not None:
-                output = format_output(
-                    result, _resolve_output(args), columns=getattr(args, "columns", None)
-                )
-                print(output)
+                # Cloud-init dump returns raw YAML string — print directly
+                if (
+                    args.resource == "vm"
+                    and getattr(args, "cloudinit_action", None) == "dump"
+                    and isinstance(result, str)
+                ):
+                    print(result)
+                else:
+                    output = format_output(
+                        result, _resolve_output(args), columns=getattr(args, "columns", None)
+                    )
+                    print(output)
         else:
             # No handler was set — show relevant help
             _print_command_help(args)
