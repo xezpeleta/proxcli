@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { Routes, Route, Link, useLocation } from 'react-router-dom'
-import { Terminal, BookOpen, Shield, Cloud, Bot, Cog, Server, ChevronRight, ArrowLeft, ExternalLink, Code2, Key, FileCode, HardDrive, Network, Globe, Clock, Users, Database, Copy, Check, Zap } from 'lucide-react'
+import { Terminal, BookOpen, Shield, Cloud, Bot, Cog, Server, ChevronRight, ArrowLeft, ExternalLink, Code2, Key, FileCode, HardDrive, Network, Globe, Clock, Users, Database, Copy, Check, Zap, Send } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeRaw from 'rehype-raw'
@@ -544,6 +544,22 @@ function CommandReferenceDocInner() {
         'proxmox auth check',
       ],
     },
+    {
+      resource: 'api',
+      icon: Send,
+      desc: 'Raw authenticated API calls — for endpoints not yet covered by dedicated subcommands.',
+      subcommands: [
+        { name: 'GET <path>', desc: 'Send a GET request (e.g. /nodes/pve01/status)' },
+        { name: 'POST <path>', desc: 'Send a POST request with --data or --data-file' },
+        { name: 'PUT <path>', desc: 'Send a PUT request to update a resource' },
+        { name: 'DELETE <path>', desc: 'Send a DELETE request' },
+      ],
+      examples: [
+        'proxmox api GET /nodes/pve01/status',
+        'proxmox api PUT /nodes/pve01/qemu/100/config -d \'{"memory": 4096}\'',
+        'echo \'{"memory": 4096}\' | proxmox api PUT /nodes/pve01/qemu/100/config',
+      ],
+    },
   ]
 
   const [active, setActive] = useState(0)
@@ -763,6 +779,41 @@ function DocsIndex() {
                 </Link>
               ))}
             </div>
+
+            {/* api escape hatch card — not a nav item, inline highlight */}
+            {section.title === 'Reference' && (
+              <div className="mt-3 p-4 rounded-lg border border-tertiary/20 bg-tertiary/5 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-tertiary/5 rounded-bl-full" />
+                <div className="flex items-start gap-3 relative">
+                  <div className="w-10 h-10 bg-tertiary/10 rounded-md flex items-center justify-center flex-shrink-0">
+                    <Send className="w-5 h-5 text-tertiary" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-medium text-primary">Raw API escape hatch</h3>
+                    <p className="text-xs text-secondary mt-1 leading-relaxed">
+                      For endpoints not yet wrapped in dedicated subcommands,{' '}
+                      <code className="bg-white/80 text-primary px-1 py-0.5 rounded text-[0.75em] font-mono">proxmox api</code>{' '}
+                      lets you make authenticated raw API calls — no manual token management with{' '}
+                      <code className="bg-white/80 text-primary px-1 py-0.5 rounded text-[0.75em] font-mono">curl</code>.
+                    </p>
+                    <div className="mt-3 bg-[#0F172A] rounded-md overflow-hidden">
+                      <pre className="p-3 m-0 text-[0.65rem] font-mono leading-relaxed text-[#E2E8F0] overflow-x-auto">
+<code>{`# GET request
+$ proxmox api GET /nodes/pve01/status
+
+# PUT with JSON body
+$ proxmox api PUT /nodes/pve01/qemu/100/config \\
+  -d '{"memory": 4096, "cores": 4}'
+
+# Piped from stdin
+$ echo '{"memory": 4096}' | proxmox api PUT \\
+  /nodes/pve01/qemu/100/config`}</code>
+                      </pre>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         ))}
       </div>
