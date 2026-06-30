@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.16.2] - 2026-06-30
+
+### Added
+- **``proxmox update``**: self-upgrade proxcli from PyPI. Queries the PyPI JSON
+  API to check for new versions and uses ``uv tool install proxcli --reinstall``
+  to upgrade in-place. ``--check`` flag reports available updates without
+  installing. ``--pre`` includes pre-release versions.
+
 ## [0.16.1] - 2026-06-30
 
 ### Added
@@ -355,6 +363,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CSRF ticket auto-refresh on 401.
 - AI-agent-friendly: default JSON output, strict exit codes, `--dry-run` mode.
 
+[0.16.2]: https://github.com/xezpeleta/proxcli/releases/tag/v0.16.2
 [0.16.1]: https://github.com/xezpeleta/proxcli/releases/tag/v0.16.1
 [0.16.0]: https://github.com/xezpeleta/proxcli/releases/tag/v0.16.0
 [0.15.0]: https://github.com/xezpeleta/proxcli/releases/tag/v0.15.0

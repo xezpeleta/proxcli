@@ -74,6 +74,7 @@ def build_root_parser() -> argparse.ArgumentParser:
     from proxmox.cli.role import register_role_parser
     from proxmox.cli.storage import register_storage_parser
     from proxmox.cli.tasks import register_task_parser
+    from proxmox.cli.update import register_update_parser
     from proxmox.cli.user import register_user_parser
     from proxmox.cli.vm import register_vm_parser
 
@@ -93,6 +94,7 @@ def build_root_parser() -> argparse.ArgumentParser:
     register_task_parser(subparsers)
     register_role_parser(subparsers)
     register_user_parser(subparsers)
+    register_update_parser(subparsers)
 
     return parser
 
@@ -224,7 +226,7 @@ GLOBAL_FLAGS_WITH_VALUE = {"--url", "--username", "--password", "--api-token", "
 def _hint_global_flags_order(argv: list[str]) -> None:
     """If user placed global flags after the resource, show a helpful hint."""
     resource_pos = -1
-    resources = {"acl", "api", "auth", "backup", "ceph", "vm", "node", "pool", "container", "storage", "cluster", "completion", "task", "user", "role", "network"}
+    resources = {"acl", "api", "auth", "backup", "ceph", "vm", "node", "pool", "container", "storage", "cluster", "completion", "task", "user", "role", "network", "update"}
     for i, arg in enumerate(argv):
         if arg in resources:
             resource_pos = i
@@ -297,7 +299,7 @@ def main(argv: list[str] | None = None) -> None:
 
     try:
         # auth status (without --permissions) and completion don't need a client
-        if args.resource == "completion" or (
+        if args.resource == "completion" or args.resource == "update" or (
             args.resource == "auth"
             and args.action == "status"
             and not getattr(args, "permissions", False)

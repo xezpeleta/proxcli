@@ -169,6 +169,14 @@ proxmox auth setup             # Create recommended roles + ACLs (needs Administ
 proxmox auth check             # Live permission test table (39 checks)
 ```
 
+### Self-update
+
+```bash
+proxmox update              # Check for updates and install the latest version
+proxmox update --check      # Only check (no install)
+proxmox update --pre        # Include pre-release versions
+```
+
 ### Completion
 
 ```bash
