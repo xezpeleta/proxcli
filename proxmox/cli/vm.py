@@ -917,8 +917,8 @@ def _vm_disk_import(args: argparse.Namespace, client: ProxmoxClient) -> dict:
     """
     import os
     import tempfile
-    import urllib.request
     import urllib.error
+    import urllib.request
 
     node = _resolve_node(client, args.node, args.vmid)
     if not node:
