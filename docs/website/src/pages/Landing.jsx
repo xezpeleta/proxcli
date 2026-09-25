@@ -466,7 +466,7 @@ function CommandReference() {
       resource: 'vm',
       icon: Monitor,
       desc: 'QEMU virtual machines — create, list, clone, migrate, start, stop, reboot, snapshots, cloud-init, template, ISO attach, disk resize, guest agent',
-      examples: ['proxmox vm list', 'proxmox vm clone 100 --newid 200 --full', 'proxmox vm migrate 100 --target pve02 --online', 'proxmox vm disk resize 100 --disk scsi0 --size +10G', 'proxmox vm agent exec 100 --command hostname']
+      examples: ['proxmox vm list', 'proxmox vm clone 100 --newid 200 --full', 'proxmox vm migrate 100 --target pve02 --online', 'proxmox vm disk resize 100 --disk scsi0 --size +10G', 'proxmox vm agent exec 100 -- hostname']
     },
     {
       resource: 'container',

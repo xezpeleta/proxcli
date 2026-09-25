@@ -103,7 +103,7 @@ High-impact VM/container workflows that exist in the Proxmox API but are missing
   - From piclaw: `vm.disk.detach` and `vm.disk.remove` workflows.
 
 - [x] **VM guest agent exec**
-  - `proxmox vm agent exec <vmid> --command <cmd> [--args ...] [--input-data ...] [--shell posix|powershell]`
+  - `proxmox vm agent exec <vmid> -- <cmd> [args...] [--shell] [--input-data ...] [--timeout N]`
   - Extend the existing `vm agent` subcommand with an `exec` sub-action.
   - Wraps `POST /nodes/{node}/qemu/{vmid}/agent/exec` + polling for result.
   - From piclaw: `vm.agent.exec` workflow. Bounded command execution with base64 I/O decoding.

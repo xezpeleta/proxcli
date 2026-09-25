@@ -85,7 +85,7 @@ class TestVMAgentUsersCLI:
 
 class TestVMAgentExecCLI:
     def test_vm_agent_exec_dry_run(self, tmp_path, monkeypatch):
-        """vm agent exec does a POST dry-run to initiate execution."""
+        """vm agent exec posts the command as an argv array (PVE 8+)."""
         config_dir = tmp_path / "proxmox-cli"
         monkeypatch.setattr("proxmox.config.models.USER_CONFIG_DIR", config_dir)
 
@@ -95,9 +95,48 @@ class TestVMAgentExecCLI:
             "--api-token", "root@pam!test=abc123",
             "--dry-run",
             "vm", "agent", "exec", "100",
-            "--command", "hostname",
             "--node", "pve01",
+            "--", "hostname",
         )
         assert result.returncode == 0
         assert "POST" in result.stdout
         assert "agent/exec" in result.stdout
+        # command is sent as an array, not a base64-encoded string
+        assert "['hostname']" in result.stdout
+
+    def test_vm_agent_exec_preserves_spaces(self, tmp_path, monkeypatch):
+        """Each positional token is one argv element; embedded spaces survive."""
+        config_dir = tmp_path / "proxmox-cli"
+        monkeypatch.setattr("proxmox.config.models.USER_CONFIG_DIR", config_dir)
+
+        result = run_proxmox(
+            "--url", "https://pve:8006",
+            "--username", "root@pam",
+            "--api-token", "root@pam!test=abc123",
+            "--dry-run",
+            "vm", "agent", "exec", "100",
+            "--node", "pve01",
+            "--", "ls", "-la", "/etc/with space",
+        )
+        assert result.returncode == 0
+        assert "POST" in result.stdout
+        # three distinct argv elements, space preserved in the third
+        assert "['ls', '-la', '/etc/with space']" in result.stdout
+
+    def test_vm_agent_exec_shell_mode(self, tmp_path, monkeypatch):
+        """--shell joins tokens and wraps them as /bin/sh -c."""
+        config_dir = tmp_path / "proxmox-cli"
+        monkeypatch.setattr("proxmox.config.models.USER_CONFIG_DIR", config_dir)
+
+        result = run_proxmox(
+            "--url", "https://pve:8006",
+            "--username", "root@pam",
+            "--api-token", "root@pam!test=abc123",
+            "--dry-run",
+            "vm", "agent", "exec", "100",
+            "--shell", "--node", "pve01",
+            "--", "ls", "-la", "/etc | grep conf",
+        )
+        assert result.returncode == 0
+        assert "POST" in result.stdout
+        assert "['/bin/sh', '-c', 'ls -la /etc | grep conf']" in result.stdout

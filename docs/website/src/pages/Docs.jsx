@@ -309,7 +309,7 @@ function CommandReferenceDocInner() {
         'proxmox vm show 100',
         'proxmox vm create --node pve01 --memory 2048 --cores 2 --name test-vm',
         'proxmox vm snapshot create 100 pre-upgrade',
-        'proxmox vm agent exec 100 --command "uname -a"',
+        'proxmox vm agent exec 100 -- uname -a',
         'proxmox vm firewall rules list 100',
       ],
     },

@@ -287,13 +287,49 @@ def register_vm_parser(subparsers: argparse._SubParsersAction) -> None:
     agent_users.add_argument("--node", help="Node name (auto-detected if omitted)")
     agent_users.set_defaults(func=_vm_agent_users)
 
-    agent_exec = agent_sub.add_parser("exec", help="Execute a command in the guest")
+    agent_exec = agent_sub.add_parser(
+        "exec",
+        help="Execute a command in the guest via QEMU guest agent",
+        description=(
+            "Execute a command inside a running VM through the QEMU guest "
+            "agent (no SSH or network access to the guest required). The "
+            "guest agent must be enabled on the VM and qemu-guest-agent "
+            "installed and running inside it.\n\n"
+            "Each positional token becomes one argv element passed directly "
+            "to the API — no shell runs in the guest — so spaces are "
+            "preserved by your shell quoting. Use a leading '--' to separate "
+            "flag-like arguments.\n\n"
+            "Examples:\n"
+            "  proxmox vm agent exec 100 -- ls -la /etc\n"
+            "  proxmox vm agent exec 100 -- cat '/etc/with space'\n"
+            "  proxmox vm agent exec 100 --shell -- 'ls -la /etc | grep conf'\n"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
     agent_exec.add_argument("vmid", type=vmid_type, help="VM ID")
-    agent_exec.add_argument("--command", default=None, help="Command to execute")
-    agent_exec.add_argument("--args", default=None, dest="cmd_args",
-                             help="Command arguments (space-separated)")
-    agent_exec.add_argument("--input-data", default=None, dest="input_data",
-                             help="Data to pass to stdin (base64 encoded)")
+    agent_exec.add_argument(
+        "command",
+        nargs="+",
+        metavar="COMMAND",
+        help="Command and arguments to run (argv list; use '--' to separate flags)",
+    )
+    agent_exec.add_argument(
+        "--shell",
+        action="store_true",
+        help="Join tokens and run via /bin/sh -c (enables pipes, &&, globs)",
+    )
+    agent_exec.add_argument(
+        "--input-data",
+        default=None,
+        dest="input_data",
+        help="Data to pass to the command's stdin (base64 encoded)",
+    )
+    agent_exec.add_argument(
+        "--timeout",
+        type=int,
+        default=30,
+        help="Seconds to wait for the command to finish (default: 30)",
+    )
     agent_exec.add_argument("--node", help="Node name (auto-detected if omitted)")
     agent_exec.set_defaults(func=_vm_agent_exec)
 
@@ -1107,25 +1143,28 @@ def _vm_agent_users(args: argparse.Namespace, client: ProxmoxClient) -> dict:
 def _vm_agent_exec(args: argparse.Namespace, client: ProxmoxClient) -> dict:
     """Execute a command inside the guest via QEMU guest agent.
 
-    Wraps ``POST /nodes/{node}/qemu/{vmid}/agent/exec`` and polls for
-    the result via ``GET /nodes/{node}/qemu/{vmid}/agent/exec-status``.
+    Wraps ``POST /nodes/{node}/qemu/{vmid}/agent/exec`` and polls for the
+    result via ``GET /nodes/{node}/qemu/{vmid}/agent/exec-status``.
+
+    The Proxmox API takes ``command`` as an array of ``[program, arg, ...]``
+    (PVE 8+); no shell runs in the guest, so each element is one argv item.
+    With ``--shell`` the tokens are joined and wrapped as
+    ``["/bin/sh", "-c", <joined>]`` to enable pipes, ``&&`` and globbing.
     """
     import base64
+    import time
 
     node = _resolve_node(client, args.node, args.vmid)
     if not node:
         return {"error": f"VM {args.vmid} not found"}
 
-    if not args.command:
-        return {"error": "--command is required for agent exec"}
+    cmd_parts = list(args.command)
+    if args.shell:
+        cmd_parts = ["/bin/sh", "-c", " ".join(cmd_parts)]
 
-    cmd_parts = [args.command]
-    if args.cmd_args:
-        cmd_parts.extend(args.cmd_args.split())
-
-    # Base64-encode command args as Proxmox expects
-    encoded = base64.b64encode(" ".join(cmd_parts).encode()).decode()
-    data = {"command": encoded}
+    # PVE 8+ expects `command` as a multi-valued array. httpx form-encodes a
+    # list as repeated keys (command=a&command=b), matching `pvesh -command`.
+    data: dict[str, Any] = {"command": cmd_parts}
     if args.input_data:
         data["input-data"] = args.input_data
 
@@ -1136,14 +1175,15 @@ def _vm_agent_exec(args: argparse.Namespace, client: ProxmoxClient) -> dict:
         return {"error": "Failed to start command in guest", "detail": init}
 
     # Step 2: poll for result
-    import time
-    for _ in range(60):  # 30 second timeout at 500ms intervals
+    timeout = args.timeout if args.timeout and args.timeout > 0 else 30
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
         status = client.get(
             f"/nodes/{node}/qemu/{args.vmid}/agent/exec-status",
             params={"pid": pid},
         )
         if isinstance(status, dict) and status.get("exited"):
-            # Decode output
+            # exec-status returns out-data/err-data base64-encoded
             out_raw = status.get("out-data", "")
             err_raw = status.get("err-data", "")
             if out_raw:
@@ -1159,7 +1199,7 @@ def _vm_agent_exec(args: argparse.Namespace, client: ProxmoxClient) -> dict:
             return {"data": status, "vmid": args.vmid, "_node": node}
         time.sleep(0.5)
 
-    return {"error": "Command timed out after 30 seconds", "pid": pid}
+    return {"error": f"Command timed out after {timeout} seconds", "pid": pid}
 
 
 # ---------------------------------------------------------------------------

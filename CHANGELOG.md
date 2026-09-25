@@ -9,6 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _No changes yet._
 
+## [0.18.0] - 2026-09-25
+
+### Fixed
+- **`proxmox vm agent exec` now correctly targets the PVE 8+ API.** The
+  previous implementation base64-encoded the command into a single string and
+  split `--args` on whitespace, which (a) no longer matches the Proxmox 8+
+  `agent/exec` schema that expects `command` as an array of `[program, arg,
+  ...]`, and (b) could not preserve arguments containing spaces.
+
+### Changed
+- **`vm agent exec` argument syntax redesigned.** The command is now taken
+  from variadic positional args, each becoming one argv element passed
+  directly to the guest agent (no shell runs in the guest, so shell quoting
+  preserves spaces exactly). Use a leading `--` to separate flag-like
+  arguments: `proxmox vm agent exec 100 -- ls -la /etc`. The old `--command`
+  / `--args` flags are removed. New `--shell` wraps the joined command as
+  `/bin/sh -c` for pipes, `&&` and globbing. New `--timeout` makes the poll
+  window configurable (default 30s). The legacy base64 command encoding is
+  dropped in favour of the array form that httpx form-encodes as repeated
+  `command=` keys, matching `pvesh -command`.
+
 ## [0.17.0] - 2026-09-25
 
 ### Added

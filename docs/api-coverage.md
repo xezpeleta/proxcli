@@ -44,7 +44,7 @@ its underlying REST API endpoint and HTTP method.
 | `agent osinfo <vmid>` | GET | `/nodes/{node}/qemu/{vmid}/agent/get-osinfo` |
 | `agent fsinfo <vmid>` | GET | `/nodes/{node}/qemu/{vmid}/agent/get-fsinfo` |
 | `agent users <vmid>` | GET | `/nodes/{node}/qemu/{vmid}/agent/get-users` |
-| `agent exec <vmid>` | POST | `/nodes/{node}/qemu/{vmid}/agent/exec` + `exec-status` |
+| `agent exec <vmid> -- <cmd> [args...]` | POST | `/nodes/{node}/qemu/{vmid}/agent/exec` + `exec-status` |
 | `cloudinit generate <vmid>` | PUT | `/nodes/{node}/qemu/{vmid}/config` |
 
 #### VM firewall
