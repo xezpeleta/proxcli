@@ -22,6 +22,10 @@ PROXCLI_ROLES: dict[str, str] = {
                   "VM.Migrate,VM.PowerMgmt,VM.Snapshot,"
                   "VM.Snapshot.Rollback",
     "proxcli-node": "VM.GuestAgent.Audit,VM.GuestAgent.FileRead",
+    # SDN bridges/vnets are SDN-managed — attaching a VM NIC to one needs
+    # SDN.Use on top of VM.Config.Network. SDN.Allocate (create/modify fabric)
+    # is intentionally NOT included.
+    "proxcli-network": "SDN.Audit,SDN.Use",
 }
 
 # ACL paths for each role
@@ -30,6 +34,7 @@ PROXCLI_ACLS: list[tuple[str, str]] = [
     ("/storage", "proxcli-storage"),
     ("/vms", "proxcli-vm"),
     ("/nodes", "proxcli-node"),
+    ("/sdn", "proxcli-network"),
 ]
 
 
@@ -114,6 +119,10 @@ PERMISSION_CHECKS: list[tuple[str, str, str, str]] = [
     # ── pools ──
     ("Pool list",               "GET",  "/pools",               "Pool.Audit"),
     ("Pool create",             "POST", "/pools",               "Pool.Allocate"),
+
+    # ── SDN (attach VM NIC to an SDN bridge/vnet) ──
+    ("SDN overview",            "GET",  "/cluster/sdn",         "SDN.Audit"),
+    ("SDN zones",               "GET",  "/cluster/sdn/zones",   "SDN.Audit"),
 
     # ── ACL / users / roles (admin-only) ──
     ("User list",               "GET",  "/access/users",        "Permissions.Modify"),
@@ -275,7 +284,7 @@ def _auth_check(args: argparse.Namespace, client: ProxmoxClient) -> None:
 
     acls = client.get("/access/acl")
     token_acls = [a for a in acls if a.get("ugid") == token_ug and a.get("type") == "token"]
-    expected_roles = set("proxcli-" + suffix for suffix in ["sys", "storage", "vm", "node"])
+    expected_roles = set("proxcli-" + suffix for suffix in ["sys", "storage", "vm", "node", "network"])
     stray = [a for a in token_acls if a.get("roleid") not in expected_roles]
 
     if stray:
@@ -288,7 +297,7 @@ def _auth_check(args: argparse.Namespace, client: ProxmoxClient) -> None:
             console.print(f"     Path: [bold]{a['path']:<10s}[/]  Role: [bold red]{a['roleid']}[/]")
         console.print()
         console.print("   Remove them in Datacenter → Permissions → API Token Permissions.")
-        console.print("   Keep only: [bold green]proxcli-sys, proxcli-storage, proxcli-vm, proxcli-node[/]")
+        console.print("   Keep only: [bold green]proxcli-sys, proxcli-storage, proxcli-vm, proxcli-node, proxcli-network[/]")
         console.print()
         # Add note to summary
         console.print(

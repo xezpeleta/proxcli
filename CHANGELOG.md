@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **`proxcli-network` role**: new recommended role (`SDN.Audit,SDN.Use`)
+  granted at `/sdn`. Attaching a VM NIC to an **SDN-managed bridge** (e.g.
+  `vmbr0`) requires `SDN.Use` on top of `VM.Config.Network`; without it, VM
+  creation fails at the `net0` step with HTTP 403
+  `Permission check failed (/sdn, SDN.Use)`. `proxmox auth setup` now creates
+  the role + ACL automatically, `proxmox auth status` checks SDN read access,
+  and the stray-role allow-list includes it. `SDN.Allocate` (fabric
+  create/modify) is intentionally excluded — proxcli only consumes existing
+  SDN networks. See `docs/api-permissions.md`.
+
 ## [0.16.2] - 2026-06-30
 
 ### Added
