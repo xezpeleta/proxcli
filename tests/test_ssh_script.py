@@ -6,7 +6,7 @@ import subprocess
 
 import pytest
 
-from proxmox.cli.auth import PROXCLI_ACLS, PROXCLI_ROLES
+from proxmox.cli.auth import GUEST_EXEC_PRIV, PROXCLI_ACLS, PROXCLI_ROLES, _build_roles
 from proxmox.ssh.script import SetupSpec, generate_setup_script
 
 
@@ -104,3 +104,42 @@ class TestScriptGeneration:
         script = generate_setup_script(_spec())
         assert 'pvesh create "$TOKEN_PATH" --privsep "$PRIVSEP" --output-format json' in script
         assert 'pvesh get "$TOKEN_PATH"' in script  # existence check
+
+
+class TestGuestExecRole:
+    """The --allow-guest-exec flag adds VM.GuestAgent.Unrestricted to proxcli-vm."""
+
+    def test_default_omits_guest_exec(self):
+        """Without the flag, proxcli-vm has no VM.GuestAgent.Unrestricted."""
+        roles = _build_roles(allow_guest_exec=False)
+        privs = roles["proxcli-vm"].split(",")
+        assert GUEST_EXEC_PRIV not in privs
+        # the read-only guest-agent privs are still present
+        assert "VM.GuestAgent.Audit" in privs
+        assert "VM.GuestAgent.FileRead" in privs
+
+    def test_flag_adds_guest_exec(self):
+        """With the flag, proxcli-vm gains VM.GuestAgent.Unrestricted."""
+        roles = _build_roles(allow_guest_exec=True)
+        privs = roles["proxcli-vm"].split(",")
+        assert GUEST_EXEC_PRIV in privs
+        assert "VM.GuestAgent.Audit" in privs  # read-only privs preserved
+
+    def test_flag_only_touches_proxcli_vm(self):
+        """The flag does not alter any other role."""
+        off = _build_roles(allow_guest_exec=False)
+        on = _build_roles(allow_guest_exec=True)
+        for name in off:
+            if name == "proxcli-vm":
+                continue
+            assert off[name] == on[name]
+
+    def test_flag_propagates_into_script(self):
+        """The generated bash script includes the privilege when the flag is on."""
+        script = generate_setup_script(_spec(roles=_build_roles(allow_guest_exec=True)))
+        # role_ensure 'proxcli-vm' '...VM.GuestAgent.Unrestricted'
+        assert "role_ensure 'proxcli-vm'" in script
+        assert GUEST_EXEC_PRIV in script
+        # and is absent when the flag is off
+        script_off = generate_setup_script(_spec(roles=_build_roles(allow_guest_exec=False)))
+        assert GUEST_EXEC_PRIV not in script_off

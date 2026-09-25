@@ -45,6 +45,26 @@ PROXCLI_ACLS: list[tuple[str, str]] = [
     ("/sdn", "proxcli-network"),
 ]
 
+#: Privilege required by ``vm agent exec`` (``POST .../agent/exec``) on PVE 9+.
+#: Granted on ``/vms/{vmid}``. Intentionally absent from ``proxcli-vm`` by
+#: default — alone it grants *all* guest-agent operations (exec + file-write).
+GUEST_EXEC_PRIV = "VM.GuestAgent.Unrestricted"
+
+
+def _build_roles(allow_guest_exec: bool = False) -> dict[str, str]:
+    """Return the proxcli role spec, optionally granting guest-agent exec.
+
+    ``vm agent exec`` requires ``VM.GuestAgent.Unrestricted`` on
+    ``/vms/{vmid}``, which the default ``proxcli-vm`` role omits. Pass
+    ``allow_guest_exec=True`` to add it. Re-running ``auth setup`` syncs the
+    role in place (``pveum role modify`` / ``PUT /access/roles/{id}`` replace
+    privs), so an existing token gains exec immediately — no rotation needed.
+    """
+    roles = dict(PROXCLI_ROLES)
+    if allow_guest_exec:
+        roles["proxcli-vm"] = roles["proxcli-vm"] + "," + GUEST_EXEC_PRIV
+    return roles
+
 
 # Permission checks: (label, method, path, privilege_needed)
 # The handler does a dry-run-like GET/POST to check if 403 is returned.
@@ -112,6 +132,8 @@ PERMISSION_CHECKS: list[tuple[str, str, str, str]] = [
     # ── QEMU guest agent ──
     ("VM guest agent",          "GET",  "/nodes/{node}/qemu/{vmid}/agent/network-get-interfaces",
      "VM.GuestAgent.Audit"),
+    ("VM guest agent exec",     "POST", "/nodes/{node}/qemu/{vmid}/agent/exec",
+     "VM.GuestAgent.Unrestricted"),
 
     # ── containers ──
     ("Container list",          "GET",  "/nodes/{node}/lxc",    "VM.Audit"),
@@ -256,6 +278,14 @@ def register_auth_parser(subparsers: argparse._SubParsersAction) -> None:
         "--regenerate", action="store_true",
         help="If the token already exists, rotate its secret (revokes the old one).",
     )
+    setup.add_argument(
+        "--allow-guest-exec", action="store_true",
+        help="Add VM.GuestAgent.Unrestricted to the proxcli-vm role so "
+             "`proxmox vm agent exec` works. Off by default: the privilege is "
+             "broad (alone it grants all guest-agent operations). Re-running "
+             "setup syncs the role in place — existing tokens gain exec "
+             "immediately, no rotation needed.",
+    )
     # Output / behaviour
     setup.add_argument(
         "--non-interactive", action="store_true",
@@ -342,6 +372,7 @@ def _auth_setup_ssh(args: argparse.Namespace, json_mode: bool) -> dict | None:
     privsep = bool(getattr(args, "privsep", True))
     regenerate = bool(getattr(args, "regenerate", False))
     dry_run = bool(getattr(args, "dry_run", False))
+    allow_guest_exec = bool(getattr(args, "allow_guest_exec", False))
 
     # 1. Build the idempotent script (no host/credentials needed for the text).
     spec = SetupSpec(
@@ -349,7 +380,7 @@ def _auth_setup_ssh(args: argparse.Namespace, json_mode: bool) -> dict | None:
         token_name=token_name,
         privsep=privsep,
         regenerate=regenerate,
-        roles=dict(PROXCLI_ROLES),
+        roles=_build_roles(allow_guest_exec),
         acls=list(PROXCLI_ACLS),
     )
     script = generate_setup_script(spec)
@@ -483,19 +514,33 @@ def _auth_setup_api(args: argparse.Namespace, client: ProxmoxClient, json_mode: 
     """
     console = Console(stderr=True, quiet=json_mode)
     created_roles: list[str] = []
+    synced_roles: list[str] = []
     skipped_roles: list[str] = []
     created_acls: list[str] = []
     skipped_acls: list[str] = []
 
-    # 1. Create roles (hoist the list fetch out of the loop).
+    # 1. Create or sync roles. Existing roles whose privileges differ are
+    #    updated in place (PUT /access/roles/{id}) so re-running setup with a
+    #    changed spec (e.g. --allow-guest-exec) repairs incomplete roles —
+    #    mirroring the SSH path's `pveum role modify` behaviour.
+    roles = _build_roles(bool(getattr(args, "allow_guest_exec", False)))
     existing_roles = client.get("/access/roles")
-    for role_name, privs in PROXCLI_ROLES.items():
-        if any(r.get("roleid") == role_name for r in existing_roles):
+    existing_privs = {
+        r.get("roleid"): set((r.get("privs") or "").split(","))
+        for r in existing_roles
+    }
+    for role_name, privs in roles.items():
+        current = existing_privs.get(role_name)
+        if current is None:
+            content = _safe_encode({"roleid": role_name, "privs": privs})
+            client.request("POST", "/access/roles", content=content)
+            created_roles.append(role_name)
+        elif current != set(privs.split(",")):
+            content = _safe_encode({"privs": privs})
+            client.request("PUT", f"/access/roles/{role_name}", content=content)
+            synced_roles.append(role_name)
+        else:
             skipped_roles.append(role_name)
-            continue
-        content = _safe_encode({"roleid": role_name, "privs": privs})
-        client.request("POST", "/access/roles", content=content)
-        created_roles.append(role_name)
 
     # 2. Create ACLs for the token using 'tokens' parameter (plural — the API
     #    docs say 'tokenid' but the actual HTTP param is 'tokens').
@@ -525,6 +570,7 @@ def _auth_setup_api(args: argparse.Namespace, client: ProxmoxClient, json_mode: 
         "via": "api",
         "token": token_ug,
         "roles_created": created_roles,
+        "roles_synced": synced_roles,
         "roles_skipped": skipped_roles,
         "acls_created": created_acls,
         "acls_skipped": skipped_acls,
@@ -534,6 +580,8 @@ def _auth_setup_api(args: argparse.Namespace, client: ProxmoxClient, json_mode: 
     console.print(f"[green]✓[/] Setup via API complete for token {token_ug}")
     if created_roles:
         console.print(f"  roles created: {', '.join(created_roles)}")
+    if synced_roles:
+        console.print(f"  roles synced:  {', '.join(synced_roles)}")
     if skipped_roles:
         console.print(f"  roles skipped: {', '.join(skipped_roles)}")
     if created_acls:
@@ -567,7 +615,10 @@ def _auth_check(args: argparse.Namespace, client: ProxmoxClient) -> None:
             if method in ("GET", "DELETE"):
                 client.request(method, real_path)
             else:
-                client.request(method, real_path, data={"dry": "1"})
+                # agent/exec needs a valid `command` array, else a 400 "missing
+                # parameter" could mask the 403 we are probing for.
+                body = {"command": ["true"]} if "agent/exec" in real_path else {"dry": "1"}
+                client.request(method, real_path, data=body)
             status = "PASS"
             passed += 1
         except ProxmoxAPIError as exc:

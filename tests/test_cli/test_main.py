@@ -84,6 +84,26 @@ class TestCLIAuth:
         assert result.returncode != 0
         assert "--host is required" in result.stderr
 
+    def test_auth_setup_allow_guest_exec_in_script(self):
+        """--allow-guest-exec adds VM.GuestAgent.Unrestricted to the dry-run script."""
+        result = run_proxmox(
+            "auth", "setup", "--host", "pve1.lan", "--dry-run", "--json",
+            "--allow-guest-exec",
+        )
+        assert result.returncode == 0, result.stderr
+        data = json.loads(result.stdout)
+        assert "VM.GuestAgent.Unrestricted" in data["script"]
+        assert "role_ensure 'proxcli-vm'" in data["script"]
+
+    def test_auth_setup_default_omits_guest_exec(self):
+        """Without --allow-guest-exec the privilege is absent from the script."""
+        result = run_proxmox(
+            "auth", "setup", "--host", "pve1.lan", "--dry-run", "--json",
+        )
+        assert result.returncode == 0, result.stderr
+        data = json.loads(result.stdout)
+        assert "VM.GuestAgent.Unrestricted" not in data["script"]
+
     def test_auth_setup_via_api_needs_config(self, tmp_path):
         """--via api is not short-circuited and needs existing credentials."""
         env = {"PROXMOX_CONFIG_DIR": str(tmp_path / "proxmox-cli")}

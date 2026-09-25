@@ -105,10 +105,13 @@ Role name: proxcli-vm
   VM.Config.Network
   VM.Config.Options
   VM.Console
+  VM.GuestAgent.Audit            ← read-only agent queries (interfaces, osinfo, …)
+  VM.GuestAgent.FileRead         ← agent file-read
   VM.Migrate
   VM.PowerMgmt
   VM.Snapshot
   VM.Snapshot.Rollback
+  VM.GuestAgent.Unrestricted     ← OPTIONAL: `vm agent exec` (see below)
 
   Pool.Allocate
   Pool.Audit
@@ -163,6 +166,17 @@ pvesh set /access/acl --path /sdn     --roles proxcli-network --tokenid proxcli 
 > `Permission check failed (/sdn, SDN.Use)`. `SDN.Allocate` (creating/modifying
 > the SDN fabric itself) is intentionally **not** included — proxcli only
 > *consumes* existing SDN networks, never redefines them.
+>
+> **Guest-agent exec (`vm agent exec`)** requires `VM.GuestAgent.Unrestricted`
+> on `/vms/{vmid}`, which is **not** in the default `proxcli-vm` role — alone it
+> grants *all* guest-agent operations (exec + file-write). Enable it explicitly:
+> ```bash
+> proxmox auth setup --host <node> --allow-guest-exec
+> ```
+> This adds the privilege to `proxcli-vm`; re-running syncs the role in place
+> (`pveum role modify` replaces privs), so an **existing token gains exec
+> immediately — no `--regenerate`, no rotation**. Drop the flag and re-run to
+> revoke it again.
 
 > **ACL management** (`proxmox acl`) and **user management**
 > (`proxmox user`) require `Permissions.Modify`, which is only in the

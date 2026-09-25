@@ -5,9 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.18.1] - 2026-09-25
 
-_No changes yet._
+### Added
+- **`proxmox auth setup --allow-guest-exec`** grants `VM.GuestAgent.Unrestricted`
+  on the `proxcli-vm` role so that `proxmox vm agent exec` works. The
+  privilege is off by default — alone it grants all guest-agent operations
+  (exec + file-write). Re-running setup with the flag syncs the role in place
+  (`pveum role modify` / `PUT /access/roles/{id}` replace privs), so an
+  **existing token gains exec immediately — no `--regenerate`, no rotation**;
+  drop the flag and re-run to revoke it again.
+
+### Fixed
+- **`--via api` setup path now syncs existing roles.** Previously it only
+  created missing roles and skipped existing ones, so re-running with a changed
+  spec (e.g. `--allow-guest-exec`) had no effect on clusters that already had
+  the roles. It now updates out-of-sync roles in place via
+  `PUT /access/roles/{id}`, mirroring the SSH path's self-healing behaviour.
+  The summary reports a new `roles_synced` list.
+- **`auth status --permissions` now probes guest-agent exec**
+  (`POST .../agent/exec`, requiring `VM.GuestAgent.Unrestricted`), so a missing
+  exec privilege is reported as a FAIL instead of going unnoticed.
+- **`docs/api-permissions.md`** listed `proxcli-vm` without the
+  `VM.GuestAgent.Audit` / `VM.GuestAgent.FileRead` privileges the code actually
+  grants; the doc is corrected and the optional `VM.GuestAgent.Unrestricted`
+  is documented.
 
 ## [0.18.0] - 2026-09-25
 
