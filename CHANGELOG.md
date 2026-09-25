@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+_No changes yet._
+
+## [0.17.0] - 2026-09-25
+
 ### Added
 - **`proxmox auth setup` rewritten as an SSH-based interactive configurator.**
   `proxmox auth setup --host <node>` SSHes into a Proxmox node as `root@pam`
@@ -393,6 +397,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CSRF ticket auto-refresh on 401.
 - AI-agent-friendly: default JSON output, strict exit codes, `--dry-run` mode.
 
+[Unreleased]: https://github.com/xezpeleta/proxcli/compare/v0.17.0...HEAD
+[0.17.0]: https://github.com/xezpeleta/proxcli/releases/tag/v0.17.0
 [0.16.2]: https://github.com/xezpeleta/proxcli/releases/tag/v0.16.2
 [0.16.1]: https://github.com/xezpeleta/proxcli/releases/tag/v0.16.1
 [0.16.0]: https://github.com/xezpeleta/proxcli/releases/tag/v0.16.0
