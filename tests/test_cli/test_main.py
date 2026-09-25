@@ -57,6 +57,39 @@ class TestCLIAuth:
         assert data["username"] == "root@pam"
         assert data["auth_method"] == "api_token"
 
+    def test_auth_setup_dry_run_json(self):
+        """auth setup --dry-run --json emits the script + ssh command as JSON."""
+        result = run_proxmox("auth", "setup", "--host", "pve1.lan", "--dry-run", "--json")
+        assert result.returncode == 0, result.stderr
+        data = json.loads(result.stdout)
+        assert data["via"] == "ssh"
+        assert data["host"] == "pve1.lan"
+        assert data["script"].startswith("#!/usr/bin/env bash")
+        assert data["ssh_command"][0] == "ssh"
+        assert "root@pve1.lan" in data["ssh_command"]
+        # The script references the proxcli roles and the DONE sentinel.
+        assert "proxcli-network" in data["script"]
+        assert 'ok "DONE"' in data["script"]
+
+    def test_auth_setup_dry_run_human_prints_script(self):
+        """auth setup --dry-run (human mode) prints the script to stdout."""
+        result = run_proxmox("auth", "setup", "--host", "pve1.lan", "--dry-run")
+        assert result.returncode == 0, result.stderr
+        assert "#!/usr/bin/env bash" in result.stdout
+        assert "SSH command:" in result.stderr
+
+    def test_auth_setup_non_interactive_without_host_fails(self):
+        """--non-interactive without --host exits non-zero with a clear error."""
+        result = run_proxmox("auth", "setup", "--non-interactive")
+        assert result.returncode != 0
+        assert "--host is required" in result.stderr
+
+    def test_auth_setup_via_api_needs_config(self, tmp_path):
+        """--via api is not short-circuited and needs existing credentials."""
+        env = {"PROXMOX_CONFIG_DIR": str(tmp_path / "proxmox-cli")}
+        result = run_proxmox("auth", "setup", "--via", "api", env=env)
+        assert result.returncode != 0
+
 
 class TestCLIVM:
     def test_vm_dry_run(self, tmp_path):

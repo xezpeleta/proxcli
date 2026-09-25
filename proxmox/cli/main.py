@@ -298,11 +298,24 @@ def main(argv: list[str] | None = None) -> None:
         return
 
     try:
-        # auth status (without --permissions) and completion don't need a client
-        if args.resource == "completion" or args.resource == "update" or (
+        # These commands don't need a pre-built client:
+        #   - completion / update           : self-contained
+        #   - auth status (no --permissions): reads config file only
+        #   - auth setup --via ssh          : bootstraps credentials itself
+        auth_setup_ssh = (
             args.resource == "auth"
-            and args.action == "status"
-            and not getattr(args, "permissions", False)
+            and getattr(args, "action", None) == "setup"
+            and getattr(args, "via", "ssh") == "ssh"
+        )
+        if (
+            args.resource == "completion"
+            or args.resource == "update"
+            or auth_setup_ssh
+            or (
+                args.resource == "auth"
+                and args.action == "status"
+                and not getattr(args, "permissions", False)
+            )
         ):
             if hasattr(args, "func"):
                 result = args.func(args, None)

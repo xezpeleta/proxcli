@@ -22,38 +22,15 @@ uv tool install .
 ## Quickstart
 
 ```bash
-# Create credentials file manually
-mkdir -p ~/.config/proxmox-cli
-chmod 700 ~/.config/proxmox-cli
-
-# For API token auth:
-cat > ~/.config/proxmox-cli/credentials.json <<'EOF'
-{
-  "url": "https://192.168.1.10:8006",
-  "username": "root@pam",
-  "auth_method": "api_token",
-  "api_token_id": "my-token",
-  "api_token_secret": "deadbeef-..."
-}
-EOF
-chmod 600 ~/.config/proxmox-cli/credentials.json
-
-# For password auth:
-cat > ~/.config/proxmox-cli/credentials.json <<'EOF'
-{
-  "url": "https://192.168.1.10:8006",
-  "username": "root@pam",
-  "auth_method": "password",
-  "password": "your_password",
-  "verify_tls": false
-}
-EOF
-chmod 600 ~/.config/proxmox-cli/credentials.json
-
-# Enable shell completions
-source <(proxmox completion bash)          # bash
-source <(proxmox completion zsh)           # zsh
-proxmox completion fish | source           # fish  (or save to ~/.config/fish/completions/proxmox.fish)
+# Bootstrap credentials + permissions on a node in one step.
+# Requires SSH access to a Proxmox node as root@pam (key auth by default).
+proxmox auth setup --host pve01.lan
+#    → creates the recommended proxcli roles, an API token, and ACLs on the node
+#    → writes the token to ~/.config/proxmox-cli/credentials.json (mode 0600)
+# Preview the script without changing anything:
+#    proxmox auth setup --host pve01.lan --dry-run
+# Password auth (needs sshpass installed):
+#    proxmox auth setup --host pve01.lan --ssh-password-stdin
 
 # Check auth status
 proxmox auth status
@@ -63,6 +40,15 @@ proxmox vm list
 
 # Show a specific VM
 proxmox vm show 100
+```
+
+Prefer to write the config file by hand? See [Manual config file](#manual-config-file) below.
+
+```bash
+# Enable shell completions
+source <(proxmox completion bash)          # bash
+source <(proxmox completion zsh)           # zsh
+proxmox completion fish | source           # fish  (or save to ~/.config/fish/completions/proxmox.fish)
 
 # Create a VM (CLI flags)
 proxmox vm create --node pve01 --vmid 110 --memory 2048 --cores 2 --name webserver
@@ -84,11 +70,33 @@ proxmox vm delete 110 --purge
 
 ## Authentication
 
-Credentials are stored in `~/.config/proxmox-cli/credentials.json` with restrictive permissions (`0600`).
+Credentials are stored in `~/.config/proxmox-cli/credentials.json` with restrictive permissions (`0600`). A system-wide config at `/etc/proxmox-cli/credentials.json` is also supported (checked after the user-level path).
 
-**proxcli never creates, modifies, or deletes this file.** You must create it manually.
+### Recommended: `auth setup`
 
-### Config file format
+`proxmox auth setup --host <node>` SSHes into a Proxmox node as `root@pam` and, in one idempotent pass, creates the recommended `proxcli-*` roles, an API token, and the ACLs that bind them — then writes the resulting token secret to `credentials.json` for you.
+
+```bash
+# Key-based SSH auth (default):
+proxmox auth setup --host pve01.lan
+
+# Password auth (requires sshpass):
+proxmox auth setup --host pve01.lan --ssh-password-stdin
+
+# Preview the generated script without touching the node:
+proxmox auth setup --host pve01.lan --dry-run
+
+# JSON output for agents/automation:
+proxmox auth setup --host pve01.lan --dry-run --json
+```
+
+Options: `--ssh-user`, `--port`, `-i/--identity`, `--pve-user` (default `root@pam`), `--token-name` (default `proxcli`), `--privsep/--no-privsep` (default on — privilege separation), `--regenerate` (rotate the token secret), `--force` (overwrite an existing `credentials.json`), `--no-write` (run on the node but don't save locally).
+
+The legacy `--via api` path uses an existing Administrator token over the REST API to create roles + ACLs only (it cannot capture or write the token secret). Prefer `--via ssh`.
+
+### Manual config file
+
+If you prefer to hand-edit credentials, create `~/.config/proxmox-cli/credentials.json` (chmod 600):
 
 ```json
 {
@@ -96,14 +104,12 @@ Credentials are stored in `~/.config/proxmox-cli/credentials.json` with restrict
   "username": "root@pam",
   "auth_method": "api_token",
   "api_token_id": "my-token",
-  "api_token_secret": "deadbeef-...",
+  "api_token_secret": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
   "verify_tls": false
 }
 ```
 
-For password auth, use `"auth_method": "password"` with `"password"` instead of `"api_token_id"`/`"api_token_secret"`.
-
-A system-wide config at `/etc/proxmox-cli/credentials.json` is also supported (checked after the user-level path).
+For password auth, use `"auth_method": "password"` with a `"password"` field instead of `api_token_id` / `api_token_secret`.
 
 ### Override credentials per command
 
@@ -123,23 +129,6 @@ proxmox vm list --username root@pam --url https://pve:8006
 ```bash
 proxmox --insecure vm list
 ```
-
-### Manual config file
-
-If you prefer to hand-edit credentials, create `~/.config/proxmox-cli/credentials.json` (chmod 600):
-
-```json
-{
-  "url": "https://192.168.1.10:8006",
-  "username": "root@pam",
-  "auth_method": "api_token",
-  "api_token_id": "my-token",
-  "api_token_secret": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
-  "verify_tls": false
-}
-```
-
-For password auth, use `"auth_method": "password"` with a `"password"` field instead of `api_token_id` / `api_token_secret`.
 
 ## Command Reference
 
@@ -165,7 +154,8 @@ For password auth, use `"auth_method": "password"` with a `"password"` field ins
 ```bash
 proxmox auth status            # Show current auth context
 proxmox auth status --permissions  # + effective permissions from API
-proxmox auth setup             # Create recommended roles + ACLs (needs Administrator)
+proxmox auth setup             # Bootstrap roles + token + ACLs (SSH as root@pam, writes credentials.json)
+proxmox auth setup --dry-run   # Preview the generated script without changing anything
 proxmox auth check             # Live permission test table (39 checks)
 ```
 

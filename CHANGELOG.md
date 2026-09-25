@@ -8,6 +8,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **`proxmox auth setup` rewritten as an SSH-based interactive configurator.**
+  `proxmox auth setup --host <node>` SSHes into a Proxmox node as `root@pam`
+  and, in one idempotent pass, creates the recommended `proxcli-*` roles, an
+  API token, and the ACLs that bind them — then writes the resulting token
+  secret to `credentials.json` (mode `0600`, with a `.bak` on overwrite). No
+  UI, no manual `pveum`, no hand-editing JSON. The generated bash script uses
+  `pveum` (roles/ACLs) and `pvesh ... --output-format json` (token
+  create/regenerate with secret capture) and is safe to re-run. Key-based SSH
+  auth is the default; password auth is supported when `sshpass` is installed.
+  New flags: `--via {ssh,api}`, `--host`, `--ssh-user`, `--port`,
+  `-i/--identity`, `--ssh-password`, `--ssh-password-stdin`, `--pve-user`,
+  `--token-name`, `--privsep/--no-privsep`, `--regenerate`, `--non-interactive`,
+  `--force`, `--no-write`, `--dry-run`, `--json`. `--dry-run` previews the
+  script without contacting the node; `--json` returns it structured for
+  agents. The token is created with **privilege separation ON** and roles
+  assigned directly via ACLs (least-privilege). The legacy REST path is kept
+  as `--via api` (roles + ACLs only; cannot capture the secret).
 - **`proxcli-network` role**: new recommended role (`SDN.Audit,SDN.Use`)
   granted at `/sdn`. Attaching a VM NIC to an **SDN-managed bridge** (e.g.
   `vmbr0`) requires `SDN.Use` on top of `VM.Config.Network`; without it, VM

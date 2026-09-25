@@ -5,32 +5,56 @@ an API token with the right permissions.
 
 ## Creating an API Token
 
-In the Proxmox VE UI: **Datacenter → Permissions → API Tokens → Add**
+The recommended way is `proxmox auth setup --host <node>` (see Quickstart below): it creates the token over SSH **with privilege separation ON** and assigns the `proxcli-*` roles directly to the token via ACLs — the token holds exactly the privileges it needs.
+
+To create one manually in the Proxmox VE UI: **Datacenter → Permissions → API Tokens → Add**
 
 1. Select **User**
 2. Enter **Token ID** (e.g. `proxcli`)
-3. Uncheck **Privilege Separation** (recommended — see note below)
+3. **Privilege Separation**: leave checked and assign roles directly to the token
+   (this is what `auth setup` does). Unchecking makes the token inherit all of
+   the user's roles — simpler but broader.
 
-The **Secret** is shown only once — save it immediately.
+The **Secret** is shown only once — save it immediately (or let `auth setup`
+write it to `credentials.json` for you).
 
-> **Privilege Separation**: when unchecked, the token inherits all of the
-> user's roles.  When checked, you must assign roles directly to the token.
-> Unchecking is simpler but broader.  Check it if you want to lock down
-> the token independently of the user.
+> **Privilege Separation**: when checked, you must assign roles directly to the
+> token (via ACLs). When unchecked, the token inherits all of the user's roles.
+> `auth setup` uses privilege separation ON with a dedicated `proxcli-*` role set
+> — the least-privilege model.
 
-## Quickstart (3 steps)
+## Quickstart (one command)
+
+`proxmox auth setup` does everything in one idempotent pass over SSH — no UI, no manual `pveum`, no hand-editing JSON:
 
 ```bash
-# 1. Bootstrap roles + ACLs (once, needs Administrator)
-proxmox auth setup
+# SSH into a node as root@pam; creates roles + token + ACLs and writes credentials.json
+proxmox auth setup --host pve01.lan
 
-# 2. Create API token (UI: Datacenter → Permissions → API Tokens → Add)
-#     User:     xezpeleta@pve
-#     Token ID: proxcli
-#     ☐ Privilege Separation (unchecked — inherits user's roles)
-#     Save the secret!
+# Preview the generated script without touching the node:
+proxmox auth setup --host pve01.lan --dry-run
 
-# 3. Write credentials.json with the new token secret
+# JSON output (for agents/automation):
+proxmox auth setup --host pve01.lan --dry-run --json
+
+# Done — everything works
+proxmox auth status
+proxmox cluster status
+proxmox vm list
+```
+
+`auth setup` creates the token **with privilege separation ON** and assigns the
+`proxcli-*` roles directly to the token via ACLs — the token holds exactly the
+privileges it needs, independent of the user. (The legacy `--via api` path only
+creates roles + ACLs using an existing Administrator token; it cannot capture or
+write the secret, so prefer `--via ssh`.)
+
+### Manual alternative
+
+If you can't SSH in, create the token in the UI (**Datacenter → Permissions →
+API Tokens → Add**) and hand-write `credentials.json`:
+
+```bash
 cat > ~/.config/proxmox-cli/credentials.json <<'EOF'
 {
   "url": "https://your-pve.example.com:8006",
@@ -41,13 +65,11 @@ cat > ~/.config/proxmox-cli/credentials.json <<'EOF'
   "verify_tls": false
 }
 EOF
-chmod 400 ~/.config/proxmox-cli/credentials.json
-
-# Done — everything works
-proxmox auth status
-proxmox cluster status
-proxmox vm list
+chmod 600 ~/.config/proxmox-cli/credentials.json
 ```
+
+Then run `proxmox auth setup --via api` (with an Administrator token already in
+`credentials.json`) to create the roles + ACLs.
 
 ## Recommended Roles
 
