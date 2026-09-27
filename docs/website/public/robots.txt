@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+
+# proxcli docs site — single-page app, all routes are client-side.
+Sitemap: https://xezpeleta.github.io/proxcli/sitemap.xml
