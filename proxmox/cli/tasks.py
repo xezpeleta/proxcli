@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 
 from proxmox.client.client import ProxmoxClient
+from proxmox.utils.helpers import attach_node
 
 
 def register_task_parser(subparsers: argparse._SubParsersAction) -> None:
@@ -66,12 +67,12 @@ def _task_list(args: argparse.Namespace, client: ProxmoxClient) -> dict | list:
             if isinstance(node_tasks, list):
                 for t in node_tasks:
                     if isinstance(t, dict):
-                        t["_node"] = node_name
+                        attach_node(t, node_name)
                     tasks.append(t)
             elif isinstance(node_tasks, dict):
                 for t in node_tasks.get("data", []):
                     if isinstance(t, dict):
-                        t["_node"] = node_name
+                        attach_node(t, node_name)
                     tasks.append(t)
         except Exception:
             pass
@@ -113,7 +114,7 @@ def _task_wait(args: argparse.Namespace, client: ProxmoxClient) -> dict:
 
         if status.get("status") == "stopped":
             exitstatus = status.get("exitstatus", "")
-            status["_node"] = node
+            attach_node(status, node)
             status["elapsed_ms"] = int((time.monotonic() - started) * 1000)
             if exitstatus == "OK":
                 return {"data": status, "result": "ok"}

@@ -318,6 +318,64 @@ class ProxmoxClient:
     # Task log streaming
     # ------------------------------------------------------------------
 
+    def wait_for_task(
+        self,
+        upid: str,
+        *,
+        timeout_s: float = 600.0,
+        poll_s: float = 0.5,
+    ) -> dict[str, Any]:
+        """Block until a Proxmox task reaches a terminal state.
+
+        Polls ``GET /nodes/{node}/tasks/{upid}/status`` until the task is
+        ``stopped`` (returning ``ok``/``error``) or ``timeout_s`` elapses.
+
+        In ``--dry-run`` mode it performs a single status probe (so the GET is
+        printed) and returns a synthetic ``ok`` result without looping.
+        """
+        import time
+
+        node = self._extract_node_from_upid(upid)
+        if not node:
+            return {"error": f"Could not extract node from UPID: {upid}", "upid": upid}
+
+        if self._dry_run:
+            self.get(f"/nodes/{node}/tasks/{upid}/status")
+            return {
+                "data": {"status": "stopped", "exitstatus": "OK"},
+                "result": "ok",
+                "upid": upid,
+                "dry_run": True,
+            }
+
+        started = time.monotonic()
+        while True:
+            status = self.get(f"/nodes/{node}/tasks/{upid}/status")
+            if not isinstance(status, dict):
+                return {"error": "Failed to read task status", "detail": status, "upid": upid}
+
+            if status.get("status") == "stopped":
+                exitstatus = status.get("exitstatus", "")
+                status["_node"] = node
+                status["elapsed_ms"] = int((time.monotonic() - started) * 1000)
+                if exitstatus == "OK":
+                    return {"data": status, "result": "ok", "upid": upid}
+                return {
+                    "data": status,
+                    "result": "error",
+                    "exitstatus": exitstatus,
+                    "upid": upid,
+                }
+
+            if time.monotonic() - started >= timeout_s:
+                return {
+                    "error": f"Task did not complete within {timeout_s}s",
+                    "current_status": status.get("status"),
+                    "upid": upid,
+                }
+
+            time.sleep(poll_s)
+
     def stream_task_log(self, upid: str, *, follow: bool = False) -> None:
         """Stream task log lines to stdout.
 

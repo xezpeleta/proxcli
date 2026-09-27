@@ -6,7 +6,7 @@ import argparse
 
 from proxmox.cli.firewall_helpers import add_firewall_rule_args, build_rule_data
 from proxmox.client.client import ProxmoxClient
-from proxmox.utils.helpers import resolve_vmid, vmid_type
+from proxmox.utils.helpers import attach_node, resolve_vmid, vmid_type
 
 
 def register_container_parser(subparsers: argparse._SubParsersAction) -> None:
@@ -17,6 +17,11 @@ def register_container_parser(subparsers: argparse._SubParsersAction) -> None:
     # --- container list ---
     ct_list = ct_sub.add_parser("list", help="List containers")
     ct_list.add_argument("--node", help="Filter by node name")
+    ct_list.add_argument(
+        "--name",
+        default=None,
+        help="Filter by container name (case-insensitive substring)",
+    )
     ct_list.set_defaults(func=_ct_list)
 
     # --- container show ---
@@ -162,27 +167,40 @@ def _resolve_ct_node(client: ProxmoxClient, node: str | None, vmid: int) -> str 
 
 def _ct_list(args: argparse.Namespace, client: ProxmoxClient) -> dict | list:
     if args.node:
-        return client.get(f"/nodes/{args.node}/lxc")
-    nodes = client.get("/nodes")
-    if isinstance(nodes, dict):
-        nodes = nodes.get("data", [])
-    cts: list[dict] = []
-    for n in (nodes if isinstance(nodes, list) else []):
-        node_name = n.get("node") if isinstance(n, dict) else n
-        try:
-            node_cts = client.get(f"/nodes/{node_name}/lxc")
-            if isinstance(node_cts, list):
-                for ct in node_cts:
-                    if isinstance(ct, dict):
-                        ct["_node"] = node_name
-                    cts.append(ct)
-            elif isinstance(node_cts, dict):
-                for ct in node_cts.get("data", []):
-                    if isinstance(ct, dict):
-                        ct["_node"] = node_name
-                    cts.append(ct)
-        except Exception:
-            pass
+        cts = client.get(f"/nodes/{args.node}/lxc")
+        if isinstance(cts, list):
+            for ct in cts:
+                if isinstance(ct, dict):
+                    attach_node(ct, args.node)
+    else:
+        nodes = client.get("/nodes")
+        if isinstance(nodes, dict):
+            nodes = nodes.get("data", [])
+        cts: list[dict] = []
+        for n in (nodes if isinstance(nodes, list) else []):
+            node_name = n.get("node") if isinstance(n, dict) else n
+            try:
+                node_cts = client.get(f"/nodes/{node_name}/lxc")
+                if isinstance(node_cts, list):
+                    for ct in node_cts:
+                        if isinstance(ct, dict):
+                            attach_node(ct, node_name)
+                        cts.append(ct)
+                elif isinstance(node_cts, dict):
+                    for ct in node_cts.get("data", []):
+                        if isinstance(ct, dict):
+                            attach_node(ct, node_name)
+                        cts.append(ct)
+            except Exception:
+                pass
+
+    name = getattr(args, "name", None)
+    if name and isinstance(cts, list):
+        needle = name.lower()
+        cts = [
+            c for c in cts
+            if isinstance(c, dict) and needle in str(c.get("name", "")).lower()
+        ]
     return cts
 
 
@@ -192,7 +210,7 @@ def _ct_show(args: argparse.Namespace, client: ProxmoxClient) -> dict:
         return {"error": f"Container {args.vmid} not found"}
     result = client.get(f"/nodes/{node}/lxc/{args.vmid}/status/current")
     if isinstance(result, dict):
-        result["_node"] = node
+        attach_node(result, node)
     return result
 
 

@@ -7,7 +7,7 @@ from typing import Any
 
 from proxmox.cli.firewall_helpers import add_firewall_rule_args, build_rule_data
 from proxmox.client.client import ProxmoxClient
-from proxmox.utils.helpers import resolve_vmid, vmid_type
+from proxmox.utils.helpers import attach_node, resolve_vmid, vmid_type
 
 
 def register_vm_parser(subparsers: argparse._SubParsersAction) -> None:
@@ -18,6 +18,11 @@ def register_vm_parser(subparsers: argparse._SubParsersAction) -> None:
     # --- vm list ---
     vm_list = vm_sub.add_parser("list", help="List virtual machines")
     vm_list.add_argument("--node", help="Filter by node name")
+    vm_list.add_argument(
+        "--name",
+        default=None,
+        help="Filter by VM name (case-insensitive substring, e.g. --name unifi)",
+    )
     vm_list.set_defaults(func=_vm_list)
 
     # --- vm show ---
@@ -239,6 +244,20 @@ def register_vm_parser(subparsers: argparse._SubParsersAction) -> None:
     snap_create.add_argument("--description", default=None, help="Snapshot description")
     snap_create.add_argument("--vmstate", type=int, choices=[0, 1], default=0,
                              help="Include RAM state (1=yes, 0=no, default: 0)")
+    snap_create.add_argument(
+        "--if-not-exists",
+        action="store_true",
+        help="Succeed (no-op) if a snapshot with this name already exists",
+    )
+    snap_create.add_argument(
+        "--wait",
+        action="store_true",
+        help="Block until the snapshot task finishes (otherwise returns the UPID immediately)",
+    )
+    snap_create.add_argument(
+        "--timeout", type=int, default=300,
+        help="Max seconds to wait with --wait (default: 300)",
+    )
     snap_create.set_defaults(func=_vm_snapshot_create)
 
     snap_show = snap_sub.add_parser("show", help="Show snapshot details")
@@ -452,28 +471,43 @@ def _resolve_node(client: ProxmoxClient, node: str | None, vmid: int) -> str | N
 def _vm_list(args: argparse.Namespace, client: ProxmoxClient) -> dict | list:
     if args.node:
         result = client.get(f"/nodes/{args.node}/qemu")
-        return result if isinstance(result, list) else result.get("data", result)
-    # All nodes: iterate
-    nodes = client.get("/nodes")
-    if isinstance(nodes, dict):
-        nodes = nodes.get("data", [])
-    vms: list[dict] = []
-    for n in (nodes if isinstance(nodes, list) else []):
-        node_name = n.get("node") if isinstance(n, dict) else n
-        try:
-            node_vms = client.get(f"/nodes/{node_name}/qemu")
-            if isinstance(node_vms, list):
-                for vm in node_vms:
-                    if isinstance(vm, dict):
-                        vm["_node"] = node_name
-                    vms.append(vm)
-            elif isinstance(node_vms, dict):
-                for vm in node_vms.get("data", []):
-                    if isinstance(vm, dict):
-                        vm["_node"] = node_name
-                    vms.append(vm)
-        except Exception:
-            pass
+        vms = result if isinstance(result, list) else result.get("data", result)
+        if isinstance(vms, list):
+            for vm in vms:
+                if isinstance(vm, dict):
+                    attach_node(vm, args.node)
+    else:
+        # All nodes: iterate
+        nodes = client.get("/nodes")
+        if isinstance(nodes, dict):
+            nodes = nodes.get("data", [])
+        vms: list[dict] = []
+        for n in (nodes if isinstance(nodes, list) else []):
+            node_name = n.get("node") if isinstance(n, dict) else n
+            try:
+                node_vms = client.get(f"/nodes/{node_name}/qemu")
+                if isinstance(node_vms, list):
+                    for vm in node_vms:
+                        if isinstance(vm, dict):
+                            attach_node(vm, node_name)
+                        vms.append(vm)
+                elif isinstance(node_vms, dict):
+                    for vm in node_vms.get("data", []):
+                        if isinstance(vm, dict):
+                            attach_node(vm, node_name)
+                        vms.append(vm)
+            except Exception:
+                pass
+
+    # Client-side name filter — the Proxmox /qemu endpoint has no name filter,
+    # so "find VM by hostname" otherwise means list-all + grep in the caller.
+    name = getattr(args, "name", None)
+    if name and isinstance(vms, list):
+        needle = name.lower()
+        vms = [
+            v for v in vms
+            if isinstance(v, dict) and needle in str(v.get("name", "")).lower()
+        ]
     return vms
 
 
@@ -483,9 +517,10 @@ def _vm_show(args: argparse.Namespace, client: ProxmoxClient) -> dict:
         return {"error": f"VM {args.vmid} not found on any node"}
     resources = client.get(f"/nodes/{node}/qemu/{args.vmid}/status/current")
     if isinstance(resources, dict):
-        resources["_node"] = node
+        attach_node(resources, node)
     else:
-        resources = {"data": resources, "_node": node}
+        resources = {"data": resources}
+        attach_node(resources, node)
     return resources
 
 
@@ -934,6 +969,7 @@ def _vm_ip(args: argparse.Namespace, client: ProxmoxClient) -> dict | list:
                 "prefix": prefix,
                 "address": f"{ip}/{prefix}" if prefix else ip,
                 "_vmid": args.vmid,
+                "node": node,
                 "_node": node,
             })
     return ips if ips else {"message": f"No non-local IPs found for VM {args.vmid}"}
@@ -1102,7 +1138,7 @@ def _vm_agent_interfaces(args: argparse.Namespace, client: ProxmoxClient) -> dic
     if isinstance(result, list):
         for iface in result:
             if isinstance(iface, dict):
-                iface["_node"] = node
+                attach_node(iface, node)
                 iface["_vmid"] = args.vmid
     return result
 
@@ -1260,11 +1296,11 @@ def _vm_snapshot_list(args: argparse.Namespace, client: ProxmoxClient) -> dict |
     if not node:
         return {"error": f"VM {args.vmid} not found"}
     result = client.get(f"/nodes/{node}/qemu/{args.vmid}/snapshot")
-    # Add _node for consistency
+    # Add node for consistency
     if isinstance(result, list):
         for snap in result:
             if isinstance(snap, dict):
-                snap["_node"] = node
+                attach_node(snap, node)
                 snap["_vmid"] = args.vmid
     return result
 
@@ -1273,12 +1309,49 @@ def _vm_snapshot_create(args: argparse.Namespace, client: ProxmoxClient) -> dict
     node = _resolve_node(client, args.node, args.vmid)
     if not node:
         return {"error": f"VM {args.vmid} not found"}
+
+    # --if-not-exists: idempotent retries. Agents re-run commands on failure,
+    # so a duplicate snapshot should be a clean no-op, not a 400.
+    if args.if_not_exists:
+        existing = client.get(f"/nodes/{node}/qemu/{args.vmid}/snapshot")
+        if isinstance(existing, list):
+            for snap in existing:
+                if isinstance(snap, dict) and snap.get("name") == args.snapname:
+                    return {
+                        "data": {"name": args.snapname, "vmid": args.vmid},
+                        "result": "already_exists",
+                        "node": node,
+                        "_node": node,
+                        "hint": f"Snapshot '{args.snapname}' already exists; no action taken.",
+                    }
+
     data: dict = {"snapname": args.snapname}
     if args.description:
         data["description"] = args.description
     if args.vmstate:
         data["vmstate"] = args.vmstate
     result = client.post(f"/nodes/{node}/qemu/{args.vmid}/snapshot", data=data)
+
+    # Proxmox returns the task UPID as the data string. Surface it clearly so
+    # an agent knows the task is async and how to wait for it.
+    upid = result if isinstance(result, str) and result.startswith("UPID") else None
+    if upid and args.wait:
+        waited = client.wait_for_task(upid, timeout_s=args.timeout)
+        waited["vmid"] = args.vmid
+        waited["snapname"] = args.snapname
+        attach_node(waited, node)
+        return waited
+
+    if upid:
+        return {
+            "data": upid,
+            "vmid": args.vmid,
+            "snapname": args.snapname,
+            "node": node,
+            "_node": node,
+            "async": True,
+            "hint": f"Snapshot task started. Run `proxmox task wait {upid}` to block until it completes.",
+        }
     return result if isinstance(result, dict) else {"data": result}
 
 
@@ -1288,7 +1361,7 @@ def _vm_snapshot_show(args: argparse.Namespace, client: ProxmoxClient) -> dict:
         return {"error": f"VM {args.vmid} not found"}
     result = client.get(f"/nodes/{node}/qemu/{args.vmid}/snapshot/{args.snapname}")
     if isinstance(result, dict):
-        result["_node"] = node
+        attach_node(result, node)
         result["_vmid"] = args.vmid
     return result
 

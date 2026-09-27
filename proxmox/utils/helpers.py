@@ -19,6 +19,23 @@ def vmid_type(value: str) -> int:
     return v
 
 
+def attach_node(record: dict, node: str | None) -> None:
+    """Inject the hosting node name into a result record in place.
+
+    Sets **both** ``node`` and ``_node``:
+    - ``node``  — the ergonomic key agents and humans look for first.
+    - ``_node`` — the historical underscore-prefixed key (denotes a field
+      proxcli injects rather than one returned by the Proxmox API), kept so
+      existing scripts and tests keep working.
+
+    Proxmox's per-node ``/qemu`` and ``/lxc`` listings omit the node name
+    from each entry, so this is how the hosting node travels with a record.
+    """
+    if node and isinstance(record, dict):
+        record["node"] = node
+        record["_node"] = node
+
+
 def resolve_vmid(client: ProxmoxClient, vmid: int | None) -> int:
     """Return *vmid* if provided, otherwise fetch the next free VMID from the cluster."""
     if vmid is not None and vmid > 0:

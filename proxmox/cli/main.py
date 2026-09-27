@@ -40,8 +40,9 @@ def build_root_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--columns",
-        nargs="+",
-        help="Columns to display in table output (space-separated)",
+        default=None,
+        help="Columns to show in table output, comma-separated "
+             "(e.g. --columns vmid,name,status). Works before or after the subcommand.",
     )
     parser.add_argument(
         "--dry-run", action="store_true", help="Print the API request without executing it"
@@ -216,46 +217,118 @@ def _print_command_help(args: argparse.Namespace) -> None:
 
 GLOBAL_FLAGS = {
     "--url", "--username", "--password", "--password-stdin", "--api-token",
-    "--output", "--dry-run", "--insecure", "--timeout", "--verbose", "--version",
+    "--output", "--dry-run", "--insecure", "--timeout", "--verbose", "--version", "--columns",
 }
 
 # Flags that take a value (the value follows the flag)
 GLOBAL_FLAGS_WITH_VALUE = {"--url", "--username", "--password", "--api-token", "--output", "--timeout", "--columns"}
 
+# Top-level resource keywords (the first one on the command line).
+RESOURCES = {
+    "acl", "api", "auth", "backup", "ceph", "vm", "node", "pool",
+    "container", "storage", "cluster", "completion", "task", "user",
+    "role", "network", "update",
+}
 
-def _hint_global_flags_order(argv: list[str]) -> None:
-    """If user placed global flags after the resource, show a helpful hint."""
-    resource_pos = -1
-    resources = {"acl", "api", "auth", "backup", "ceph", "vm", "node", "pool", "container", "storage", "cluster", "completion", "task", "user", "role", "network", "update"}
+# Global flags safe to relocate before the resource. `--timeout` is excluded:
+# `task wait` and `vm agent exec` define their own --timeout with different
+# units/meaning, so hoisting it would silently change behaviour.
+HOISTABLE_FLAGS = GLOBAL_FLAGS - {"--timeout"}
+HOISTABLE_VALUE_FLAGS = GLOBAL_FLAGS_WITH_VALUE - {"--timeout"}
+
+
+def _hoist_global_flags(argv: list[str]) -> list[str]:
+    """Relocate global flags that appear *after* the resource to before it.
+
+    argparse only registers global flags on the root parser, so without this
+    `proxmox vm list --dry-run` or `proxmox vm list --output yaml` fails with
+    "unrecognized arguments". Hoisting them in front of the resource makes
+    global flags work in either position — the form agents try first
+    (`... <subcommand> --flag`) just works.
+
+    Everything after a bare `--` is left untouched so positional flag-like
+    tokens survive (e.g. `vm agent exec 100 -- ls -la /etc`).
+    """
+    res_pos = None
     for i, arg in enumerate(argv):
-        if arg in resources:
-            resource_pos = i
+        if arg in RESOURCES:
+            res_pos = i
             break
-    if resource_pos < 0:
-        return
-    # Check if any global flag (with or without value) appears after the resource
-    for i in range(resource_pos, len(argv)):
-        arg = argv[i]
-        if arg in GLOBAL_FLAGS:
-            # Build a corrected example
-            resource_part = argv[resource_pos:]
-            flags_before = []
-            for j in range(resource_pos):
-                if argv[j] in GLOBAL_FLAGS or (j > 0 and argv[j-1] in GLOBAL_FLAGS_WITH_VALUE):
-                    flags_before.append(argv[j])
-            example = f"proxmox {arg} {' '.join(resource_part[:2])} ..."
-            log_error(
-                f"Global flag '{arg}' must come before the resource. "
-                f"Try: {example}"
-            )
-            return
-        # Check if this arg is the value of a previous global flag
-        if i > 0 and argv[i-1] in GLOBAL_FLAGS_WITH_VALUE and i-1 > resource_pos:
-            log_error(
-                f"Global flag '{argv[i-1]}' must come before the resource. "
-                f"Try: proxmox {argv[i-1]} {arg} {' '.join(argv[resource_pos:resource_pos+2])} ..."
-            )
-            return
+    if res_pos is None:
+        return argv
+
+    before = argv[:res_pos]
+    rest = argv[res_pos:]
+
+    hoisted: list[str] = []
+    kept: list[str] = [rest[0]]  # the resource token itself stays put
+    i = 1
+    while i < len(rest):
+        tok = rest[i]
+        # `--` ends option parsing for this subcommand; keep it and everything
+        # after verbatim so positional flag-like tokens are preserved.
+        if tok == "--":
+            kept.extend(rest[i:])
+            break
+        # `--flag=value` form of a global flag
+        if tok.startswith("--") and "=" in tok:
+            flag = tok.split("=", 1)[0]
+            if flag in HOISTABLE_FLAGS:
+                hoisted.append(tok)
+                i += 1
+                continue
+        # bare `--flag` form
+        if tok in HOISTABLE_FLAGS:
+            hoisted.append(tok)
+            if tok in HOISTABLE_VALUE_FLAGS and i + 1 < len(rest):
+                hoisted.append(rest[i + 1])
+                i += 2
+            else:
+                i += 1
+            continue
+        kept.append(tok)
+        i += 1
+
+    return before + hoisted + kept
+
+
+def _resolve_columns(args: argparse.Namespace) -> list[str] | None:
+    """Split the --columns string into a list (comma- or whitespace-separated)."""
+    raw = getattr(args, "columns", None)
+    if not raw:
+        return None
+    if isinstance(raw, list):  # defensive: legacy nargs='+' value
+        return raw or None
+    parts = [c.strip() for c in raw.replace(",", " ").split()]
+    return [p for p in parts if p] or None
+
+
+def _print_cheat_sheet() -> None:
+    """Print a focused quick-start for the no-argument / first-run case.
+
+    Agents frequently skip `--help` and guess subcommands. Printing the most
+    common tasks on a zero-arg invocation teaches the syntax up front.
+    """
+    print(
+        f"proxcli {version('proxcli')} — Proxmox VE CLI. "
+        f"Binary: `proxmox` (alias: `proxcli`).\n"
+        "\n"
+        "Common tasks:\n"
+        "  proxmox vm list --name unifi                 # find a VM by name (returns vmid + node)\n"
+        "  proxmox vm show 100                          # show a VM (node auto-detected)\n"
+        "  proxmox node list                            # list all nodes\n"
+        "  proxmox vm snapshot create 100 pre-update --wait   # snapshot, block until done\n"
+        "  proxmox task wait UPID:pve01:...             # block until an async task finishes\n"
+        "  proxmox vm start 100 && proxmox vm stop 100\n"
+        "\n"
+        "Agent-friendly flags (work before OR after the subcommand):\n"
+        "  --dry-run        print the API request without executing it\n"
+        "  --output yaml    clean key:value output (easiest to parse; default is json)\n"
+        "  --columns a,b,c  pick columns for --output table\n"
+        "  --insecure       skip TLS certificate verification\n"
+        "\n"
+        "Run `proxmox --help` for the full reference, or `proxmox <resource> --help`."
+    )
 
 
 def _resolve_output(args: argparse.Namespace) -> str:
@@ -284,17 +357,19 @@ def main(argv: list[str] | None = None) -> None:
 
     effective_argv = argv if argv is not None else sys.argv[1:]
 
+    # Relocate global flags that appear after the resource so they parse in
+    # either position (e.g. `proxmox vm list --dry-run` == `proxmox --dry-run vm list`).
+    effective_argv = _hoist_global_flags(effective_argv)
+
     try:
         args = parser.parse_args(effective_argv)
     except SystemExit as e:
-        # If argparse rejected the args, check for global flags placed after resource
-        if effective_argv:
-            _hint_global_flags_order(effective_argv)
         sys.exit(e.code if isinstance(e.code, int) else 1)
 
-    # --help or no subcommand: just show help
+    # No subcommand: print a focused cheat sheet (agents skip --help, so make
+    # the zero-arg case teach the syntax). Use --help for the full reference.
     if args.resource is None:
-        parser.print_help()
+        _print_cheat_sheet()
         return
 
     try:
@@ -326,7 +401,7 @@ def main(argv: list[str] | None = None) -> None:
                     else:
                         output = format_output(
                             result, _resolve_output(args),
-                            columns=getattr(args, "columns", None),
+                            columns=_resolve_columns(args),
                         )
                         print(output)
             return
@@ -347,7 +422,7 @@ def main(argv: list[str] | None = None) -> None:
                     print(result)
                 else:
                     output = format_output(
-                        result, _resolve_output(args), columns=getattr(args, "columns", None)
+                        result, _resolve_output(args), columns=_resolve_columns(args)
                     )
                     print(output)
         else:

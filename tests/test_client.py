@@ -212,3 +212,54 @@ class TestStorageUpload:
         with pytest.raises(ProxmoxAPIError) as exc_info:
             client.upload("pve01", "local", str(iso_file))
         assert exc_info.value.status_code == 403
+
+
+class TestWaitForTask:
+    def test_returns_ok_when_task_stopped_ok(self, mock_httpx_client):
+        upid = "UPID:pve01:00000001:00000001:00000001:qmsnapshot::root@pam:"
+        mock_httpx_client.add_response(
+            url=f"https://pve:8006/api2/json/nodes/pve01/tasks/{upid}/status",
+            json={"data": {"status": "stopped", "exitstatus": "OK"}},
+        )
+        client = ProxmoxClient("https://pve:8006", AuthManager())
+        result = client.wait_for_task(upid, timeout_s=2, poll_s=0.01)
+        assert result["result"] == "ok"
+        assert result["upid"] == upid
+
+    def test_returns_error_on_failed_exitstatus(self, mock_httpx_client):
+        upid = "UPID:pve01:00000002:00000002:00000002:qmsnapshot::root@pam:"
+        mock_httpx_client.add_response(
+            url=f"https://pve:8006/api2/json/nodes/pve01/tasks/{upid}/status",
+            json={"data": {"status": "stopped", "exitstatus": "snapshot disk already exists"}},
+        )
+        client = ProxmoxClient("https://pve:8006", AuthManager())
+        result = client.wait_for_task(upid, timeout_s=2, poll_s=0.01)
+        assert result["result"] == "error"
+        assert "snapshot disk already exists" in result["exitstatus"]
+
+    def test_polls_until_stopped(self, mock_httpx_client):
+        """First poll sees a running task; second poll sees stopped."""
+        upid = "UPID:pve01:00000003:00000003:00000003:qmsnapshot::root@pam:"
+        mock_httpx_client.add_response(
+            url=f"https://pve:8006/api2/json/nodes/pve01/tasks/{upid}/status",
+            json={"data": {"status": "running"}},
+        )
+        mock_httpx_client.add_response(
+            url=f"https://pve:8006/api2/json/nodes/pve01/tasks/{upid}/status",
+            json={"data": {"status": "stopped", "exitstatus": "OK"}},
+        )
+        client = ProxmoxClient("https://pve:8006", AuthManager())
+        result = client.wait_for_task(upid, timeout_s=5, poll_s=0.01)
+        assert result["result"] == "ok"
+
+    def test_dry_run_returns_synthetic_ok_without_looping(self, mock_httpx_client):
+        upid = "UPID:pve01:00000004:00000004:00000004:qmsnapshot::root@pam:"
+        client = ProxmoxClient("https://pve:8006", AuthManager(), dry_run=True)
+        result = client.wait_for_task(upid, timeout_s=1, poll_s=0.01)
+        assert result["result"] == "ok"
+        assert result.get("dry_run") is True
+
+    def test_bad_upid_returns_error(self, mock_httpx_client):
+        client = ProxmoxClient("https://pve:8006", AuthManager())
+        result = client.wait_for_task("not-a-upid", timeout_s=1, poll_s=0.01)
+        assert "error" in result

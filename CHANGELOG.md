@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.19.0] - 2026-09-27
+
+### Added
+- **Agent-friendly ergonomics pass.** A round of changes that make the CLI
+  easier for automated callers (AI agents, scripts) to drive correctly on the
+  first try:
+  - **`proxcli` binary alias.** The package now installs both `proxmox` and
+    `proxcli` entry points — use whichever the task description names.
+  - **Bare `node` field on read output.** VM, container, task, and VM-IP
+    records now carry a top-level `node` (alongside the historical `_node`),
+    so the node needed for the next command is always at the obvious key.
+  - **`--name` filter on `vm list` and `container list`.** Case-insensitive
+    substring match across all nodes; collapses the hostname→vmid+node lookup
+    to a single command (`proxmox vm list --name unifi`).
+  - **`--columns` is comma-separated and position-flexible.** Fixed the
+    `nargs="+"` footgun that broke `vm list --columns vmid name`; columns are
+    now `--columns vmid,name,status` and work before or after the subcommand.
+  - **Global flags work after the subcommand.** `proxmox vm list --dry-run` and
+    `proxmox vm list --output yaml` now parse correctly — global flags are
+    internally relocated before the resource. (`--timeout` is deliberately
+    excluded because `task wait` / `vm agent exec` shadow it.)
+  - **Zero-argument cheat sheet.** Running `proxmox` with no args prints a
+    concise quick-start instead of the full `--help` dump.
+  - **Snapshot create: `--wait`, `--if-not-exists`, UPID hint.** `vm snapshot
+    create` returns the UPID with a `task wait` hint by default; `--wait`
+    blocks until completion; `--if-not-exists` makes it idempotent.
+  - **`ProxmoxClient.wait_for_task(upid)`** — a reusable, dry-run-aware helper
+    that polls `/nodes/{node}/tasks/{upid}/status` to a terminal state.
+  - **`docs/agent-guide.md`** — a focused reference for automated callers,
+    linked from the README.
+
 ## [0.18.1] - 2026-09-25
 
 ### Added

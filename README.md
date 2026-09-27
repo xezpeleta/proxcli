@@ -490,18 +490,47 @@ ACL write operations require the `Permissions.Modify` privilege
 
 ## AI Agent Usage
 
-Every command emits valid JSON by default (stdout) and diagnostic messages on stderr. Exit codes follow Unix conventions.
+Every command emits valid JSON by default (stdout) and diagnostic messages on stderr. Exit codes follow Unix conventions. The package installs **two** binaries — `proxmox` and `proxcli` — use either.
+
+See [`docs/agent-guide.md`](docs/agent-guide.md) for the full reference. Highlights:
 
 ```bash
-# Dry-run to preview the API call
+# Find a VM by hostname -> returns its vmid + node in one call
+proxmox vm list --name unifi
+
+# Show a VM (node is auto-detected from the vmid; no --node needed)
+proxmox vm show 100
+
+# Every record carries a bare `node` field (and `_node` for back-compat),
+# so the node you need for the next command is always in the output.
+
+# Global flags work BEFORE or AFTER the subcommand — write what reads naturally:
+proxmox vm list --dry-run
+proxmox vm list --output yaml --columns vmid,name,status
+
+# Snapshots are async: --wait blocks until done, --if-not-exists makes it idempotent.
+# Without --wait the UPID is returned with a hint telling you how to poll.
+proxmox vm snapshot create 100 pre-update --wait
+proxmox vm snapshot create 100 pre-update --if-not-exists
+
+# Block on any async task by its UPID:
+proxmox task wait UPID:pve01:00000001:00000001:00000001:vzdump::root@pam:
+
+# Dry-run to preview the API call (prints method, URL, headers, body):
 proxmox --dry-run vm create --node pve01 --vmid 110 --memory 1024
 
-# Machine-parseable JSON output
-proxmox --output json vm list | jq '.[] | {vmid, status}'
+# YAML output is the easiest to parse line-by-line:
+proxmox --output yaml vm list | grep 'name:'
 
 # Check exit code
 proxmox vm show 999 || echo "VM not found"
 ```
+
+Running `proxmox` with no arguments prints a short cheat sheet of these patterns.
+
+### Global flag placement
+
+Global flags (`--dry-run`, `--output`, `--columns`, `--insecure`, `--verbose`, `--url`, `--username`, `--password`, `--api-token`) may appear **before or after** the subcommand — the CLI relocates them internally. One exception: `--timeout` is **not** relocated, because `task wait` and `vm agent exec` define their own `--timeout` with different units. Put `--timeout` before the resource when you mean the request timeout.
 
 ## Development
 
