@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.21.0] - 2026-09-28
+
+### Added
+- **VM & container tags.** `vm create` and `container create` accept a
+  repeatable `--tag` flag (e.g. `--tag web --tag prod`). `vm set` gains
+  `--tag` (merge-add, preserves existing tags, deduplicates) and `--clear-tags`
+  (removes all tags). Tags are safe config metadata — they do not affect a
+  running VM's runtime behaviour, only inventory labels.
+
+- **`cluster ha` — High Availability inspection (read-only).** List and show
+  HA-managed resources, node groups, current status, and manager config:
+  `proxmox cluster ha resources list`, `proxmox cluster ha resources show
+  vm:100`, `proxmox cluster ha groups list`, `proxmox cluster ha status`,
+  `proxmox cluster ha config`. Mutating operations (add/remove resources,
+  arm/disarm) are intentionally omitted — they affect cluster fencing and are
+  unsafe for unattended use. Use the `proxmox api` escape hatch if needed.
+
+- **`cluster sdn` — Software-Defined Networking inspection (read-only).**
+  Inspect SDN zones, VNets, controllers, subnets, IPAMs, DNS plugins, overview,
+  and pending (unapplied) changes: `proxmox cluster sdn zones list`,
+  `proxmox cluster sdn vnets show vnet0`, `proxmox cluster sdn pending`, etc.
+  Creating/applying SDN objects reconfigures live cluster networking and is
+  omitted for safety.
+
+- **Permission map** (`auth status --permissions`) now covers the HA and SDN
+  read endpoints (`Sys.Audit` for HA, `SDN.Audit` for SDN). The default `auth
+  setup` roles already grant sufficient access (`proxcli-sys` on `/`,
+  `proxcli-network` on `/sdn`).
+
 ## [0.20.0] - 2026-09-27
 
 ### Changed

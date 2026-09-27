@@ -151,8 +151,24 @@ PERMISSION_CHECKS: list[tuple[str, str, str, str]] = [
     ("Pool create",             "POST", "/pools",               "Pool.Allocate"),
 
     # ── SDN (attach VM NIC to an SDN bridge/vnet) ──
-    ("SDN overview",            "GET",  "/cluster/sdn",         "SDN.Audit"),
-    ("SDN zones",               "GET",  "/cluster/sdn/zones",   "SDN.Audit"),
+    ("SDN overview",            "GET",  "/cluster/sdn",                "SDN.Audit"),
+    ("SDN zones",               "GET",  "/cluster/sdn/zones",          "SDN.Audit"),
+    ("SDN zone show",           "GET",  "/cluster/sdn/zones/{zone}",   "SDN.Audit"),
+    ("SDN vnets",               "GET",  "/cluster/sdn/vnets",          "SDN.Audit"),
+    ("SDN vnet show",           "GET",  "/cluster/sdn/vnets/{vnet}",   "SDN.Audit"),
+    ("SDN controllers",         "GET",  "/cluster/sdn/controllers",    "SDN.Audit"),
+    ("SDN subnets",             "GET",  "/cluster/sdn/subnets",        "SDN.Audit"),
+    ("SDN ipams",               "GET",  "/cluster/sdn/ipams",          "SDN.Audit"),
+    ("SDN dns",                 "GET",  "/cluster/sdn/dns",            "SDN.Audit"),
+    ("SDN pending",             "GET",  "/cluster/sdn/pending",        "SDN.Audit"),
+
+    # ── HA (read-only inspection) ──
+    ("HA status",               "GET",  "/cluster/ha/status/current",  "Sys.Audit"),
+    ("HA config",               "GET",  "/cluster/ha/config",          "Sys.Audit"),
+    ("HA resources",            "GET",  "/cluster/ha/resources",       "Sys.Audit"),
+    ("HA resource show",        "GET",  "/cluster/ha/resources/{sid}", "Sys.Audit"),
+    ("HA groups",               "GET",  "/cluster/ha/groups",          "Sys.Audit"),
+    ("HA group show",           "GET",  "/cluster/ha/groups/{group}",  "Sys.Audit"),
 
     # ── ACL / users / roles (admin-only) ──
     ("User list",               "GET",  "/access/users",        "Permissions.Modify"),

@@ -134,6 +134,98 @@ def register_cluster_parser(subparsers: argparse._SubParsersAction) -> None:
                          help="Filter by reference type")
     fw_refs.set_defaults(func=_cl_fw_refs)
 
+    # --- HA (read-only) ---
+    # High Availability inspection only. Mutating operations (add/remove HA
+    # resources, arm/disarm) are intentionally omitted: they affect cluster
+    # fencing behaviour and are unsafe for an unattended production cluster.
+    # Use `proxmox api POST /cluster/ha/...` with --dry-run if you truly need them.
+    ha = cl_sub.add_parser("ha", help="Inspect High Availability (read-only)")
+    ha_sub = ha.add_subparsers(dest="ha_resource", title="resources", required=True)
+
+    ha_status = ha_sub.add_parser("status", help="Current HA service status")
+    ha_status.set_defaults(func=_cl_ha_status)
+
+    ha_config = ha_sub.add_parser("config", help="HA manager configuration")
+    ha_config.set_defaults(func=_cl_ha_config)
+
+    ha_res = ha_sub.add_parser("resources", help="HA-managed resources")
+    ha_res.set_defaults(func=_cl_ha_resources)
+    ha_res_sub = ha_res.add_subparsers(dest="ha_action", title="actions", required=False)
+    ha_res_list = ha_res_sub.add_parser("list", help="List HA resources")
+    ha_res_list.set_defaults(func=_cl_ha_resources)
+    ha_res_show = ha_res_sub.add_parser("show", help="Show an HA resource")
+    ha_res_show.add_argument("sid", help="Resource ID (e.g. vm:100 or ct:200)")
+    ha_res_show.set_defaults(func=_cl_ha_resource_show)
+
+    ha_grp = ha_sub.add_parser("groups", help="HA node groups")
+    ha_grp.set_defaults(func=_cl_ha_groups)
+    ha_grp_sub = ha_grp.add_subparsers(dest="ha_action", title="actions", required=False)
+    ha_grp_list = ha_grp_sub.add_parser("list", help="List HA groups")
+    ha_grp_list.set_defaults(func=_cl_ha_groups)
+    ha_grp_show = ha_grp_sub.add_parser("show", help="Show an HA group")
+    ha_grp_show.add_argument("group", help="Group name")
+    ha_grp_show.set_defaults(func=_cl_ha_group_show)
+
+    # --- SDN (read-only) ---
+    # Software-Defined Networking inspection only. Creating/applying SDN
+    # objects reconfigures live cluster networking and is omitted for safety.
+    sdn = cl_sub.add_parser("sdn", help="Inspect Software-Defined Networking (read-only)")
+    sdn_sub = sdn.add_subparsers(dest="sdn_resource", title="resources", required=True)
+
+    sdn_overview = sdn_sub.add_parser("overview", help="SDN overview / status")
+    sdn_overview.set_defaults(func=_cl_sdn_overview)
+
+    sdn_pending = sdn_sub.add_parser("pending", help="Pending (unapplied) SDN changes")
+    sdn_pending.set_defaults(func=_cl_sdn_pending)
+
+    sdn_zones = sdn_sub.add_parser("zones", help="SDN zones")
+    sdn_zones.set_defaults(func=_cl_sdn_zones)
+    sdn_zones_sub = sdn_zones.add_subparsers(dest="sdn_action", title="actions", required=False)
+    sdn_zones_list = sdn_zones_sub.add_parser("list", help="List zones")
+    sdn_zones_list.set_defaults(func=_cl_sdn_zones)
+    sdn_zones_show = sdn_zones_sub.add_parser("show", help="Show a zone")
+    sdn_zones_show.add_argument("zone", help="Zone name")
+    sdn_zones_show.set_defaults(func=_cl_sdn_zone_show)
+
+    sdn_vnets = sdn_sub.add_parser("vnets", help="SDN virtual networks")
+    sdn_vnets.set_defaults(func=_cl_sdn_vnets)
+    sdn_vnets_sub = sdn_vnets.add_subparsers(dest="sdn_action", title="actions", required=False)
+    sdn_vnets_list = sdn_vnets_sub.add_parser("list", help="List VNets")
+    sdn_vnets_list.set_defaults(func=_cl_sdn_vnets)
+    sdn_vnets_show = sdn_vnets_sub.add_parser("show", help="Show a VNet")
+    sdn_vnets_show.add_argument("vnet", help="VNet name")
+    sdn_vnets_show.set_defaults(func=_cl_sdn_vnet_show)
+
+    sdn_ctrl = sdn_sub.add_parser("controllers", help="SDN controllers")
+    sdn_ctrl.set_defaults(func=_cl_sdn_controllers)
+    sdn_ctrl_sub = sdn_ctrl.add_subparsers(dest="sdn_action", title="actions", required=False)
+    sdn_ctrl_list = sdn_ctrl_sub.add_parser("list", help="List controllers")
+    sdn_ctrl_list.set_defaults(func=_cl_sdn_controllers)
+    sdn_ctrl_show = sdn_ctrl_sub.add_parser("show", help="Show a controller")
+    sdn_ctrl_show.add_argument("controller", help="Controller ID")
+    sdn_ctrl_show.set_defaults(func=_cl_sdn_controller_show)
+
+    sdn_subnets = sdn_sub.add_parser("subnets", help="SDN subnets")
+    sdn_subnets.set_defaults(func=_cl_sdn_subnets)
+    sdn_subnets_sub = sdn_subnets.add_subparsers(dest="sdn_action", title="actions", required=False)
+    sdn_subnets_list = sdn_subnets_sub.add_parser("list", help="List subnets")
+    sdn_subnets_list.set_defaults(func=_cl_sdn_subnets)
+    sdn_subnets_show = sdn_subnets_sub.add_parser("show", help="Show a subnet")
+    sdn_subnets_show.add_argument("subnet", help="Subnet ID")
+    sdn_subnets_show.set_defaults(func=_cl_sdn_subnet_show)
+
+    sdn_ipams = sdn_sub.add_parser("ipams", help="SDN IPAM plugins")
+    sdn_ipams.set_defaults(func=_cl_sdn_ipams)
+    sdn_ipams_sub = sdn_ipams.add_subparsers(dest="sdn_action", title="actions", required=False)
+    sdn_ipams_list = sdn_ipams_sub.add_parser("list", help="List IPAM plugins")
+    sdn_ipams_list.set_defaults(func=_cl_sdn_ipams)
+
+    sdn_dns = sdn_sub.add_parser("dns", help="SDN DNS plugins")
+    sdn_dns.set_defaults(func=_cl_sdn_dns)
+    sdn_dns_sub = sdn_dns.add_subparsers(dest="sdn_action", title="actions", required=False)
+    sdn_dns_list = sdn_dns_sub.add_parser("list", help="List DNS plugins")
+    sdn_dns_list.set_defaults(func=_cl_sdn_dns)
+
 
 # ---------------------------------------------------------------------------
 # Handlers
@@ -259,3 +351,79 @@ def _cl_fw_ipset_del_cidr(args: argparse.Namespace, client: ProxmoxClient) -> di
 def _cl_fw_refs(args: argparse.Namespace, client: ProxmoxClient) -> dict | list:
     params = {"type": args.type} if args.type else None
     return client.get("/cluster/firewall/refs", params=params)
+
+
+# --- HA (read-only) ---
+
+def _cl_ha_status(_args: argparse.Namespace, client: ProxmoxClient) -> dict | list:
+    return client.get("/cluster/ha/status/current")
+
+
+def _cl_ha_config(_args: argparse.Namespace, client: ProxmoxClient) -> dict:
+    return client.get("/cluster/ha/config")
+
+
+def _cl_ha_resources(_args: argparse.Namespace, client: ProxmoxClient) -> dict | list:
+    return client.get("/cluster/ha/resources")
+
+
+def _cl_ha_resource_show(args: argparse.Namespace, client: ProxmoxClient) -> dict:
+    return client.get(f"/cluster/ha/resources/{args.sid}")
+
+
+def _cl_ha_groups(_args: argparse.Namespace, client: ProxmoxClient) -> dict | list:
+    return client.get("/cluster/ha/groups")
+
+
+def _cl_ha_group_show(args: argparse.Namespace, client: ProxmoxClient) -> dict:
+    return client.get(f"/cluster/ha/groups/{args.group}")
+
+
+# --- SDN (read-only) ---
+
+def _cl_sdn_overview(_args: argparse.Namespace, client: ProxmoxClient) -> dict | list:
+    return client.get("/cluster/sdn")
+
+
+def _cl_sdn_pending(_args: argparse.Namespace, client: ProxmoxClient) -> dict | list:
+    return client.get("/cluster/sdn/pending")
+
+
+def _cl_sdn_zones(_args: argparse.Namespace, client: ProxmoxClient) -> dict | list:
+    return client.get("/cluster/sdn/zones")
+
+
+def _cl_sdn_zone_show(args: argparse.Namespace, client: ProxmoxClient) -> dict:
+    return client.get(f"/cluster/sdn/zones/{args.zone}")
+
+
+def _cl_sdn_vnets(_args: argparse.Namespace, client: ProxmoxClient) -> dict | list:
+    return client.get("/cluster/sdn/vnets")
+
+
+def _cl_sdn_vnet_show(args: argparse.Namespace, client: ProxmoxClient) -> dict:
+    return client.get(f"/cluster/sdn/vnets/{args.vnet}")
+
+
+def _cl_sdn_controllers(_args: argparse.Namespace, client: ProxmoxClient) -> dict | list:
+    return client.get("/cluster/sdn/controllers")
+
+
+def _cl_sdn_controller_show(args: argparse.Namespace, client: ProxmoxClient) -> dict:
+    return client.get(f"/cluster/sdn/controllers/{args.controller}")
+
+
+def _cl_sdn_subnets(_args: argparse.Namespace, client: ProxmoxClient) -> dict | list:
+    return client.get("/cluster/sdn/subnets")
+
+
+def _cl_sdn_subnet_show(args: argparse.Namespace, client: ProxmoxClient) -> dict:
+    return client.get(f"/cluster/sdn/subnets/{args.subnet}")
+
+
+def _cl_sdn_ipams(_args: argparse.Namespace, client: ProxmoxClient) -> dict | list:
+    return client.get("/cluster/sdn/ipams")
+
+
+def _cl_sdn_dns(_args: argparse.Namespace, client: ProxmoxClient) -> dict | list:
+    return client.get("/cluster/sdn/dns")

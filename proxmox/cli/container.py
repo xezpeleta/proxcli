@@ -40,6 +40,8 @@ def register_container_parser(subparsers: argparse._SubParsersAction) -> None:
     ct_create.add_argument("--cores", type=int, default=1, help="CPU cores")
     ct_create.add_argument("--net", default=None, help="Network config (e.g. name=eth0,bridge=vmbr0,ip=dhcp)")
     ct_create.add_argument("--password", default=None, help="Root password")
+    ct_create.add_argument("--tag", action="append", default=None,
+                           help="Tag for the container (repeatable). e.g. --tag web --tag prod")
     ct_create.set_defaults(func=_ct_create)
 
     # --- container start ---
@@ -227,6 +229,8 @@ def _ct_create(args: argparse.Namespace, client: ProxmoxClient) -> dict:
         data["net0"] = args.net
     if args.password:
         data["password"] = args.password
+    if args.tag:
+        data["tags"] = ";".join(args.tag)
     return client.post(f"/nodes/{args.node}/lxc", data=data)
 
 

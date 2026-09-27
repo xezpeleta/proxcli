@@ -171,6 +171,18 @@ proxmox node list
 proxmox node show pve01
 proxmox cluster status
 
+# High Availability (read-only)
+proxmox cluster ha status
+proxmox cluster ha resources list
+proxmox cluster ha resources show vm:100
+proxmox cluster ha groups list
+
+# SDN (read-only)
+proxmox cluster sdn overview
+proxmox cluster sdn zones list
+proxmox cluster sdn vnets show vnet0
+proxmox cluster sdn pending      # unapplied changes
+
 # Storage
 proxmox storage list
 proxmox storage show local
@@ -178,6 +190,46 @@ proxmox storage show local
 # Tasks
 proxmox task list
 proxmox task wait UPID:pve01:…
+```
+
+## VM & container tags
+
+Tags are safe inventory labels — they don't affect a running VM's runtime
+behaviour, so they're safe to set on production machines.
+
+```bash
+# Add tags on create
+proxmox vm create --node pve01 --memory 1024 --vmid 100 --tag web --tag prod
+proxmox container create --node pve01 --vmid 200 --ostemplate ... --tag web
+
+# Merge-add tags to an existing VM (preserves current tags, deduplicates)
+proxmox vm set 100 --tag web --tag prod
+
+# Remove all tags
+proxmox vm set 100 --clear-tags
+```
+
+Tags appear in `vm show` / `container show` output under the `tags` key
+(semicolon-separated, as Proxmox stores them).
+
+## Read-only cluster inspection: HA & SDN
+
+`cluster ha` and `cluster sdn` expose **read-only** views of High Availability
+and Software-Defined Networking. Mutating operations (arm/disarm HA, apply SDN)
+are intentionally omitted — they affect cluster fencing / live networking and
+are unsafe for unattended use. Reach for `proxmox api POST …` with `--dry-run`
+if you truly need them.
+
+```bash
+proxmox cluster ha status                 # current HA service status
+proxmox cluster ha resources list         # HA-managed VMs/containers
+proxmox cluster ha resources show vm:100  # detail (sid = vm:ID or ct:ID)
+proxmox cluster ha groups list
+
+proxmox cluster sdn overview
+proxmox cluster sdn zones list
+proxmox cluster sdn vnets show vnet0
+proxmox cluster sdn pending               # unapplied changes
 ```
 
 ## Discovering the full API surface

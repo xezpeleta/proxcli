@@ -62,6 +62,8 @@ def register_vm_parser(subparsers: argparse._SubParsersAction) -> None:
                            help="Import disk from existing volume (e.g. local:import/deb12.qcow2)")
     vm_create.add_argument("--file", default=None, dest="spec_file",
                            help="YAML file with VM spec (flat Proxmox config keys). CLI flags override file values.")
+    vm_create.add_argument("--tag", action="append", default=None,
+                           help="Tag for the VM (repeatable). e.g. --tag web --tag prod")
     vm_create.set_defaults(func=_vm_create)
 
     # --- vm start ---
@@ -163,6 +165,13 @@ def register_vm_parser(subparsers: argparse._SubParsersAction) -> None:
                          help="Cloud-init custom config (user=...,vendor=...)")
     vm_set.add_argument("--option", default=None, action="append", dest="options",
                          help="Arbitrary config key=value (repeatable). e.g. --option memory=8192 --option cores=4")
+    # Tags are safe config metadata: they do not affect a running VM's runtime
+    # behaviour, only inventory labels used by the web UI and bulk operations.
+    tag_group = vm_set.add_mutually_exclusive_group()
+    tag_group.add_argument("--tag", action="append", default=None, dest="add_tags",
+                           help="Add a tag to the VM (repeatable; preserves existing tags). e.g. --tag web --tag prod")
+    tag_group.add_argument("--clear-tags", action="store_true", default=False,
+                           help="Remove all tags from the VM")
     vm_set.set_defaults(func=_vm_set)
 
     # --- vm iso ---
@@ -659,6 +668,10 @@ def _vm_create(args: argparse.Namespace, client: ProxmoxClient) -> dict:
     if "cores" not in data:
         data["cores"] = "1"  # default when neither CLI nor file provides it
 
+    # Tags (semicolon-joined, per Proxmox config convention)
+    if args.tag:
+        data["tags"] = ";".join(args.tag)
+
     # Pre-encode values from file_spec that might contain special chars (:, =, ,)
     # File spec values are passed as-is; only CLI values go through manual encoding.
     # For file_spec, we assume the user writes native Proxmox values which need encoding.
@@ -854,8 +867,22 @@ def _vm_set(args: argparse.Namespace, client: ProxmoxClient) -> dict:
             key, _, value = opt.partition("=")
             data[key.strip()] = value.strip()
 
+    # Tags (safe metadata: does not affect a running VM's runtime behaviour).
+    # ``--clear-tags`` removes the whole tags key; ``--tag`` merges into the
+    # existing set without clobbering tags added elsewhere.
+    if getattr(args, "clear_tags", False):
+        data["delete"] = "tags"
+    elif getattr(args, "add_tags", None):
+        current = client.get(f"/nodes/{node}/qemu/{args.vmid}/config")
+        existing = [t for t in str(current.get("tags", "") or "").split(";") if t]
+        merged = existing.copy()
+        for t in args.add_tags:
+            if t not in merged:
+                merged.append(t)
+        data["tags"] = ";".join(merged)
+
     if not data:
-        return {"error": "No configuration keys provided. Use --ipconfig0, --ciuser, --option key=value, etc."}
+        return {"error": "No configuration keys provided. Use --ipconfig0, --ciuser, --option key=value, --tag, etc."}
 
     # Build form-encoded body
     from urllib.parse import urlencode

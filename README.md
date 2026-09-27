@@ -205,7 +205,9 @@ proxmox vm config <vmid> [--node <node>]     # clean config, ready for --file im
 proxmox vm create --node <node> --memory <mb> [--vmid <id>] [--cores <n>] \
     [--name <name>] [--cdrom <iso>] [--net <config>] [--disk <size>] \
     [--scsihw <type>] [--bios seabios|ovmf] [--machine <type>] [--boot <order>] \
-    [--file <spec.yaml>]     # declarative VM spec (CLI flags override file values)
+    [--tag <tag>] [--file <spec.yaml>]     # --tag is repeatable; --file = declarative spec
+proxmox vm set <vmid> [--node <node>] [--ciuser <user>] [--ipconfig0 <cfg>] \
+    [--sshkeys <file|keys>] [--option key=value] [--tag <tag>] [--clear-tags]   # tags: merge-add or clear
 proxmox vm start <vmid> [--node <node>]
 proxmox vm stop <vmid> [--node <node>]
 proxmox vm reboot <vmid> [--node <node>]
@@ -280,7 +282,7 @@ See [docs/cloud-init.md](docs/cloud-init.md) for cloud-init specifics.
 ```bash
 proxmox container list [--node <node>]
 proxmox container show <vmid> [--node <node>]
-proxmox container create --node <node> --vmid <id> --ostemplate <tmpl> [--memory <mb>] [--cores <n>] [--storage <name>]
+proxmox container create --node <node> --vmid <id> --ostemplate <tmpl> [--memory <mb>] [--cores <n>] [--storage <name>] [--tag <tag>]
 proxmox container start <vmid> [--node <node>]
 proxmox container stop <vmid> [--node <node>]
 proxmox container delete <vmid> [--node <node>] [--force] [--purge]
@@ -397,6 +399,28 @@ proxmox cluster firewall ipsets delete <name>
 proxmox cluster firewall ipsets add-cidr <name> --cidr 192.168.1.0/24
 proxmox cluster firewall ipsets delete-cidr <name> --cidr 192.168.1.0/24
 proxmox cluster firewall refs [--type alias|ipset|group]
+
+# High Availability (read-only — mutating ops are intentionally omitted)
+proxmox cluster ha status                     # current HA service status
+proxmox cluster ha config                     # HA manager configuration
+proxmox cluster ha resources list             # HA-managed VMs/containers
+proxmox cluster ha resources show vm:100       # resource detail (sid = vm:ID or ct:ID)
+proxmox cluster ha groups list                # HA node groups
+proxmox cluster ha groups show <group>
+
+# Software-Defined Networking (read-only — apply/create omitted for safety)
+proxmox cluster sdn overview                  # SDN status
+proxmox cluster sdn pending                   # unapplied SDN changes
+proxmox cluster sdn zones list
+proxmox cluster sdn zones show <zone>
+proxmox cluster sdn vnets list
+proxmox cluster sdn vnets show <vnet>
+proxmox cluster sdn controllers list
+proxmox cluster sdn controllers show <controller>
+proxmox cluster sdn subnets list
+proxmox cluster sdn subnets show <subnet>
+proxmox cluster sdn ipams                     # IPAM plugins (list)
+proxmox cluster sdn dns                       # DNS plugins (list)
 ```
 
 ### Task
