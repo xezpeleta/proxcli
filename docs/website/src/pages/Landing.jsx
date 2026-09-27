@@ -4,7 +4,7 @@ import {
   ChevronRight, Copy, Check, Star, 
   ArrowRight, Code2, Globe, Key, Lock, 
   Container, HardDrive, Network, Users, 
-  Keyboard, Eye, Clock, Cloud, Workflow,
+  Keyboard, Eye, Clock, Cloud,
   FileCode, Database, Monitor
 } from 'lucide-react'
 import SplitFlapAgent from '../components/SplitFlapAgent'
@@ -129,14 +129,9 @@ function Features() {
       description: <><code className="font-mono text-tertiary bg-blue-50 px-1 rounded">proxmox vm list</code>, <code className="font-mono text-tertiary bg-blue-50 px-1 rounded">proxmox vm start 100</code> — a discoverable <code className="font-mono text-tertiary bg-blue-50 px-1 rounded">&lt;resource&gt; &lt;action&gt;</code> interface that feels like docker or kubectl.</>
     },
     {
-      icon: Shield,
-      title: 'API Token & Password Auth',
-      description: 'Authenticate via Proxmox API tokens or user/password. Credentials persist in XDG config with strict file permissions.'
-    },
-    {
-      icon: Monitor,
-      title: 'Beautiful Rich Tables',
-      description: 'Human-readable colored tables for list commands, with sortable columns and automatic column sizing.'
+      icon: Key,
+      title: 'Least-Privilege by Default',
+      description: <><code className="font-mono text-tertiary bg-blue-50 px-1 rounded">auth setup</code> prints the exact <code className="font-mono text-tertiary bg-blue-50 px-1 rounded">pveum</code>/<code className="font-mono text-tertiary bg-blue-50 px-1 rounded">pvesh</code> commands to mint a scoped token with five dedicated <code className="font-mono text-tertiary bg-blue-50 px-1 rounded">proxcli-*</code> roles — no SSH required. Add <code className="font-mono text-tertiary bg-blue-50 px-1 rounded">--auto</code> to run them over SSH, and <code className="font-mono text-tertiary bg-blue-50 px-1 rounded">auth check</code> to verify effective privileges live.</>
     },
     {
       icon: Bot,
@@ -174,9 +169,9 @@ function Features() {
       description: 'Check Ceph cluster health, OSD status with disk wearout, and physical disk inventory from the CLI.'
     },
     {
-      icon: Users,
-      title: 'User & ACL Management',
-      description: 'Create users, roles, and ACLs. Built-in auth setup and permission checking for least-privilege access.'
+      icon: Globe,
+      title: 'Cluster-Wide Visibility',
+      description: 'Inspect High Availability (resources, groups, status) and Software-Defined Networking (zones, vnets, controllers, subnets) across the whole cluster — read-only and safe for production.'
     },
     {
       icon: Clock,
@@ -187,11 +182,6 @@ function Features() {
       icon: Monitor,
       title: 'Guest Agent Integration',
       description: 'Query IP addresses, OS info, filesystems, user accounts, and execute commands inside VMs and containers via the QEMU guest agent and LXC interfaces.'
-    },
-    {
-      icon: Workflow,
-      title: 'Shell Completions',
-      description: 'Built-in bash, zsh, and fish completion scripts generated from the parser tree — always in sync.'
     }
   ]
 
