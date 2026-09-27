@@ -164,3 +164,65 @@ def generate_setup_script(spec: SetupSpec) -> str:
     a("")
     a('ok "DONE"')
     return "\n".join(lines) + "\n"
+
+
+# ---------------------------------------------------------------------------
+# Manual (copy-paste) command list — the flat pveum/pvesh commands the
+# setup script wraps, emitted for the user to review and run by hand on a
+# node. No SSH transport required.
+# ---------------------------------------------------------------------------
+
+
+def generate_manual_commands(spec: SetupSpec) -> str:
+    """Return flat, copy-pasteable ``pveum``/``pvesh`` commands for manual setup.
+
+    Unlike :func:`generate_setup_script` (a wrapped bash script piped over SSH
+    that reports structured ``PROXCLI:`` results), this produces plain commands
+    the user can review and paste directly into a root shell on a PVE node.
+    Each role line is idempotent (``add ... || modify ...``) so the whole block
+    is safe to re-run. No SSH access is required — this is the default mode.
+    """
+    if not spec.pve_user or not spec.token_name:
+        raise ValueError("pve_user and token_name are required")
+    if not spec.roles:
+        raise ValueError("at least one role is required")
+
+    ug = f"{spec.pve_user}!{spec.token_name}"
+    token_path = f"/access/users/{spec.pve_user}/token/{spec.token_name}"
+    privsep = "1" if spec.privsep else "0"
+
+    lines: list[str] = []
+    a = lines.append
+
+    a("# ===================================================================")
+    a("# proxcli permission setup — run on a Proxmox node as root (root@pam).")
+    a("# Idempotent: safe to re-run. Review, then paste the whole block.")
+    a("# ===================================================================")
+    a("")
+    a("# 1. Create (or sync) the proxcli roles.")
+    a("#    `pveum role add` creates a new role; `pveum role modify` updates an")
+    a("#    existing one. The `||` fallback makes each line work either way.")
+    a("")
+    for name, privs in spec.roles.items():
+        a(f"pveum role add {_sh(name)} --privs {_sh(privs)} 2>/dev/null \\")
+        a(f"  || pveum role modify {_sh(name)} --privs {_sh(privs)}")
+        a("")
+    a("# 2. Create the API token. The JSON output contains a \"value\" field —")
+    a("#    that is your one-time token secret (shown only here; copy it).")
+    if spec.regenerate:
+        a("#    Rotating an existing token's secret:")
+        a(f"pvesh set {_sh(token_path)} --regenerate 1 --output-format json")
+    else:
+        a(f"pvesh create {_sh(token_path)} --privsep {privsep} --output-format json")
+        a("#    If the token already exists and you want a new secret, use instead:")
+        a(f"#    pvesh set {_sh(token_path)} --regenerate 1 --output-format json")
+    a("")
+    a("# 3. Bind each role to the token on the right ACL path.")
+    a("")
+    for path, role in spec.acls:
+        a(f"pveum acl modify {_sh(path)} --tokens {_sh(ug)} --roles {_sh(role)}")
+    a("")
+    a("# Done! Verify on the node with:  pveum acl list")
+    a("# Then save the token secret on your workstation (proxmox will prompt")
+    a("# for it, or run `proxmox auth setup --no-write` for a JSON template).")
+    return "\n".join(lines) + "\n"

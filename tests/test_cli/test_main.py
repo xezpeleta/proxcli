@@ -57,9 +57,11 @@ class TestCLIAuth:
         assert data["username"] == "root@pam"
         assert data["auth_method"] == "api_token"
 
-    def test_auth_setup_dry_run_json(self):
-        """auth setup --dry-run --json emits the script + ssh command as JSON."""
-        result = run_proxmox("auth", "setup", "--host", "pve1.lan", "--dry-run", "--json")
+    def test_auth_setup_dry_run_json_ssh(self):
+        """auth setup --via ssh --dry-run --json emits the script + ssh command."""
+        result = run_proxmox(
+            "auth", "setup", "--via", "ssh", "--host", "pve1.lan", "--dry-run", "--json",
+        )
         assert result.returncode == 0, result.stderr
         data = json.loads(result.stdout)
         assert data["via"] == "ssh"
@@ -71,34 +73,75 @@ class TestCLIAuth:
         assert "proxcli-network" in data["script"]
         assert 'ok "DONE"' in data["script"]
 
-    def test_auth_setup_dry_run_human_prints_script(self):
-        """auth setup --dry-run (human mode) prints the script to stdout."""
-        result = run_proxmox("auth", "setup", "--host", "pve1.lan", "--dry-run")
+    def test_auth_setup_auto_implies_ssh(self):
+        """--auto is a shorthand for --via ssh (same dry-run payload shape)."""
+        result = run_proxmox(
+            "auth", "setup", "--auto", "--host", "pve1.lan", "--dry-run", "--json",
+        )
+        assert result.returncode == 0, result.stderr
+        data = json.loads(result.stdout)
+        assert data["via"] == "ssh"
+        assert data["ssh_command"][0] == "ssh"
+
+    def test_auth_setup_default_is_manual(self):
+        """Default (no --via) is manual mode: prints pveum commands, no SSH."""
+        result = run_proxmox("auth", "setup", "--json", "--non-interactive")
+        assert result.returncode == 0, result.stderr
+        data = json.loads(result.stdout)
+        assert data["via"] == "manual"
+        assert "pveum role add" in data["commands"]
+        assert "pvesh create" in data["commands"]
+        assert "pveum acl modify" in data["commands"]
+        assert "credentials_template" in data
+
+    def test_auth_setup_dry_run_human_prints_script_ssh(self):
+        """auth setup --via ssh --dry-run (human mode) prints the script to stdout."""
+        result = run_proxmox(
+            "auth", "setup", "--via", "ssh", "--host", "pve1.lan", "--dry-run",
+        )
         assert result.returncode == 0, result.stderr
         assert "#!/usr/bin/env bash" in result.stdout
         assert "SSH command:" in result.stderr
 
-    def test_auth_setup_non_interactive_without_host_fails(self):
-        """--non-interactive without --host exits non-zero with a clear error."""
+    def test_auth_setup_manual_human_prints_commands(self):
+        """Default manual mode prints flat pveum/pvesh commands to stdout."""
         result = run_proxmox("auth", "setup", "--non-interactive")
+        assert result.returncode == 0, result.stderr
+        assert "pveum role add" in result.stdout
+        assert "pveum role modify" in result.stdout  # the idempotent fallback
+        assert "pvesh create" in result.stdout
+        assert "credentials.json" in result.stderr  # the next-steps template
+
+    def test_auth_setup_ssh_non_interactive_without_host_fails(self):
+        """--via ssh --non-interactive without --host exits non-zero."""
+        result = run_proxmox("auth", "setup", "--via", "ssh", "--non-interactive")
         assert result.returncode != 0
         assert "--host is required" in result.stderr
 
     def test_auth_setup_allow_guest_exec_in_script(self):
-        """--allow-guest-exec adds VM.GuestAgent.Unrestricted to the dry-run script."""
+        """--allow-guest-exec adds VM.GuestAgent.Unrestricted to the ssh script."""
         result = run_proxmox(
-            "auth", "setup", "--host", "pve1.lan", "--dry-run", "--json",
-            "--allow-guest-exec",
+            "auth", "setup", "--via", "ssh", "--host", "pve1.lan",
+            "--dry-run", "--json", "--allow-guest-exec",
         )
         assert result.returncode == 0, result.stderr
         data = json.loads(result.stdout)
         assert "VM.GuestAgent.Unrestricted" in data["script"]
         assert "role_ensure 'proxcli-vm'" in data["script"]
 
-    def test_auth_setup_default_omits_guest_exec(self):
-        """Without --allow-guest-exec the privilege is absent from the script."""
+    def test_auth_setup_allow_guest_exec_in_manual_commands(self):
+        """--allow-guest-exec surfaces in the manual pveum commands too."""
         result = run_proxmox(
-            "auth", "setup", "--host", "pve1.lan", "--dry-run", "--json",
+            "auth", "setup", "--json", "--allow-guest-exec",
+        )
+        assert result.returncode == 0, result.stderr
+        data = json.loads(result.stdout)
+        assert "VM.GuestAgent.Unrestricted" in data["commands"]
+
+    def test_auth_setup_default_omits_guest_exec(self):
+        """Without --allow-guest-exec the privilege is absent from the ssh script."""
+        result = run_proxmox(
+            "auth", "setup", "--via", "ssh", "--host", "pve1.lan", "--dry-run", "--json",
         )
         assert result.returncode == 0, result.stderr
         data = json.loads(result.stdout)

@@ -27,6 +27,29 @@ proxmox storage list
 
 Every VM/container record carries a **bare `node`** field (plus `_node` for backward compatibility). Use it for the next command's `--node`.
 
+## Bootstrapping credentials (`auth setup`)
+
+`proxmox auth setup` defaults to **manual** mode — it prints the flat
+`pveum`/`pvesh` commands to run on a Proxmox node as `root`. No SSH access is
+required. For an agent without node-shell access, request the JSON form and
+hand the commands to the operator:
+
+```bash
+# Emit the pveum/pvesh commands + a credentials.json template (no prompts):
+proxmox auth setup --non-interactive --json
+```
+
+The operator runs the commands on a node, captures the token secret from the
+`pvesh` output, and writes `credentials.json` (or re-runs interactively to
+paste the secret). For full automation when the agent **does** have SSH access
+to a node as `root@pam`, use `--auto`:
+
+```bash
+proxmox auth setup --auto --host pve01.lan --non-interactive --json
+```
+
+Verify afterwards with `proxmox auth status --permissions`.
+
 ## The `node` field (important)
 
 Read responses include **both** `node` and `_node`. Prefer `node`:

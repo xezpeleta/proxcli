@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.20.0] - 2026-09-27
+
+### Changed
+- **`auth setup` is now manual by default.** Running `proxmox auth setup` with
+  no flags prints the flat `pveum`/`pvesh` commands to run on a Proxmox node as
+  `root` — no SSH access required. The user reviews the commands, pastes them
+  into a root shell on a node, copies the token secret from the `pvesh` output,
+  and pastes it back when proxcli prompts (which writes `credentials.json`).
+  This makes SSH key/password access a non-requirement for the default flow:
+  the user stays in control and can review every command before it runs.
+
+  - The previous automatic-over-SSH behaviour is now opt-in via `--auto`
+    (shorthand for `--via ssh`). Scripts that relied on `proxmox auth setup
+    --host <node>` doing SSH should add `--auto` (or `--via ssh`).
+  - `--via` now accepts `manual` (default), `ssh`, and `api`.
+  - `--non-interactive` / `--no-write` manual mode prints a `credentials.json`
+    template instead of prompting; `--json` returns the commands + template as
+    structured output for agents.
+
+### Added
+- **`generate_manual_commands(spec)`** in `proxmox.ssh.script` — produces the
+  flat, idempotent (`pveum role add ... || pveum role modify ...`) command list
+  that manual mode prints. Unit-tested alongside the existing script generator.
+
 ## [0.19.0] - 2026-09-27
 
 ### Added

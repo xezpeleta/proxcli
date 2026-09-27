@@ -7,7 +7,7 @@ import subprocess
 import pytest
 
 from proxmox.cli.auth import GUEST_EXEC_PRIV, PROXCLI_ACLS, PROXCLI_ROLES, _build_roles
-from proxmox.ssh.script import SetupSpec, generate_setup_script
+from proxmox.ssh.script import SetupSpec, generate_manual_commands, generate_setup_script
 
 
 def _spec(**kw) -> SetupSpec:
@@ -143,3 +143,59 @@ class TestGuestExecRole:
         # and is absent when the flag is off
         script_off = generate_setup_script(_spec(roles=_build_roles(allow_guest_exec=False)))
         assert GUEST_EXEC_PRIV not in script_off
+
+
+class TestManualCommandGeneration:
+    """Tests for generate_manual_commands — the flat pveum/pvesh command list."""
+
+    def test_produces_flat_pveum_pvesh_commands(self):
+        out = generate_manual_commands(_spec())
+        # No bash-script scaffolding — these are commands to paste, not a script.
+        assert "#!/usr/bin/env bash" not in out
+        assert "set -uo pipefail" not in out
+        assert "role_ensure()" not in out
+        # The actual pveum/pvesh invocations are present.
+        assert "pveum role add" in out
+        assert "pvesh create" in out
+        assert "pveum acl modify" in out
+
+    def test_roles_are_idempotent_add_or_modify(self):
+        """Each role line falls back from `add` to `modify` so re-runs are safe."""
+        out = generate_manual_commands(_spec())
+        assert "pveum role add 'proxcli-sys'" in out
+        assert "|| pveum role modify 'proxcli-sys'" in out
+
+    def test_token_create_command_uses_privsep(self):
+        out = generate_manual_commands(_spec(privsep=True))
+        assert "pvesh create '/access/users/root@pam/token/proxcli' --privsep 1" in out
+        out_no = generate_manual_commands(_spec(privsep=False))
+        assert "--privsep 0" in out_no
+
+    def test_regenerate_uses_pvesh_set(self):
+        out = generate_manual_commands(_spec(regenerate=True))
+        assert "pvesh set" in out
+        assert "--regenerate 1" in out
+        assert "pvesh create" not in out
+
+    def test_acls_reference_token_ugid(self):
+        out = generate_manual_commands(_spec())
+        assert "--tokens 'root@pam!proxcli'" in out
+        # ACL command shape: pveum acl modify '<path>' --tokens '<ug>' --roles '<role>'
+        assert "pveum acl modify '/' --tokens 'root@pam!proxcli' --roles 'proxcli-sys'" in out
+
+    def test_custom_user_token_quoted(self):
+        out = generate_manual_commands(_spec(pve_user="admin@pve", token_name="ci"))
+        assert "/access/users/admin@pve/token/ci" in out
+        assert "--tokens 'admin@pve!ci'" in out
+
+    def test_guest_exec_flag_propagates(self):
+        out = generate_manual_commands(_spec(roles=_build_roles(allow_guest_exec=True)))
+        assert GUEST_EXEC_PRIV in out
+        out_off = generate_manual_commands(_spec(roles=_build_roles(allow_guest_exec=False)))
+        assert GUEST_EXEC_PRIV not in out_off
+
+    def test_quotes_single_quotes_in_user(self):
+        out = generate_manual_commands(_spec(pve_user="o'reilly@pam"))
+        # The _sh idiom escapes an embedded single quote as the 5-char sequence '"'"'.
+        bash_quote_escape = "'\"'\"'"
+        assert bash_quote_escape in out

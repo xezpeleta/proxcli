@@ -25,17 +25,24 @@ write it to `credentials.json` for you).
 
 ## Quickstart (one command)
 
-`proxmox auth setup` does everything in one idempotent pass over SSH — no UI, no manual `pveum`, no hand-editing JSON:
+`proxmox auth setup` is the recommended path — by default it prints the exact
+`pveum`/`pvesh` commands to run on a node as `root` (no SSH access required),
+or with `--auto` it runs them over SSH in one idempotent pass:
 
 ```bash
-# SSH into a node as root@pam; creates roles + token + ACLs and writes credentials.json
-proxmox auth setup --host pve01.lan
+# Default (manual): print the pveum/pvesh commands to review and run on a node.
+# After running them, paste the token secret back when prompted (writes credentials.json):
+proxmox auth setup
 
-# Preview the generated script without touching the node:
-proxmox auth setup --host pve01.lan --dry-run
+# Automatic over SSH into a node as root@pam; creates roles + token + ACLs
+# and writes credentials.json:
+proxmox auth setup --auto --host pve01.lan
 
-# JSON output (for agents/automation):
-proxmox auth setup --host pve01.lan --dry-run --json
+# Preview the commands without touching the node:
+proxmox auth setup --dry-run
+
+# JSON output (for agents/automation) — emits the commands + a credentials template:
+proxmox auth setup --non-interactive --json
 
 # Done — everything works
 proxmox auth status
@@ -47,12 +54,13 @@ proxmox vm list
 `proxcli-*` roles directly to the token via ACLs — the token holds exactly the
 privileges it needs, independent of the user. (The legacy `--via api` path only
 creates roles + ACLs using an existing Administrator token; it cannot capture or
-write the secret, so prefer `--via ssh`.)
+write the secret, so prefer the default `manual` mode or `--auto`.)
 
-### Manual alternative
+### Fully manual alternative
 
-If you can't SSH in, create the token in the UI (**Datacenter → Permissions →
-API Tokens → Add**) and hand-write `credentials.json`:
+If you can't run `auth setup` at all, create the token in the UI
+(**Datacenter → Permissions → API Tokens → Add**) and hand-write
+`credentials.json`:
 
 ```bash
 cat > ~/.config/proxmox-cli/credentials.json <<'EOF'
@@ -69,7 +77,8 @@ chmod 600 ~/.config/proxmox-cli/credentials.json
 ```
 
 Then run `proxmox auth setup --via api` (with an Administrator token already in
-`credentials.json`) to create the roles + ACLs.
+`credentials.json`) to create the roles + ACLs — or just run the default
+`proxmox auth setup` to get the `pveum` commands to run on a node.
 
 ## Recommended Roles
 

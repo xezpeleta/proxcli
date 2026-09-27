@@ -15,7 +15,7 @@ from proxmox.config.config import ConfigLoader
 from proxmox.config.models import AuthMethod
 from proxmox.config.writer import ConfigWriter
 from proxmox.ssh.runner import SetupResult, SshError, SshRunner, parse_setup_output
-from proxmox.ssh.script import SetupSpec, generate_setup_script
+from proxmox.ssh.script import SetupSpec, generate_manual_commands, generate_setup_script
 
 # Recommended roles for proxcli (see docs/api-permissions.md)
 PROXCLI_ROLES: dict[str, str] = {
@@ -172,29 +172,30 @@ def _safe_encode(data: dict[str, str]) -> str:
 
 SETUP_EPILOG = """\
 examples:
-  # Interactive (recommended) — prompts for host, writes credentials.json:
+  # Default (manual): print pveum/pvesh commands to copy-paste on a node.
+  # No SSH access required — review the commands, run them as root, then
+  # paste the token secret back when prompted (writes credentials.json):
   proxmox auth setup
 
-  # Fully non-interactive over SSH with key auth:
+  # Manual, non-interactive: print commands + a credentials.json template,
+  # no prompts (for agents/scripts that can't SSH in):
+  proxmox auth setup --non-interactive --json
+
+  # Automatic over SSH (the previous default) — needs SSH key or sshpass:
+  proxmox auth setup --auto --host pve1.lan
   proxmox auth setup --via ssh --host pve1.lan --non-interactive
 
-  # Non-interactive with a password (requires sshpass):
-  proxmox auth setup --host pve1.lan --ssh-password-stdin --non-interactive < pw
-
   # Rotate an existing token's secret:
-  proxmox auth setup --host pve1.lan --regenerate --force
+  proxmox auth setup --auto --host pve1.lan --regenerate --force
 
-  # Preview the script without running anything:
-  proxmox auth setup --host pve1.lan --dry-run
-
-  # Machine-readable result for agents/scripts:
-  proxmox auth setup --host pve1.lan --non-interactive --json
+  # Preview the SSH script without running anything:
+  proxmox auth setup --via ssh --host pve1.lan --dry-run
 
   # Legacy: use an existing admin token over the REST API (roles + ACLs only):
   proxmox --url https://pve:8006 --api-token 'root@pam!admin=SECRET' \\
       auth setup --via api
 
-what it does (ssh mode):
+what it does (ssh mode, i.e. --auto / --via ssh):
   1. SSH into <host> as <ssh-user> (key auth by default; password via sshpass).
   2. Run an idempotent bash script as root@pam that:
        - creates/syncs the proxcli-* roles,
@@ -203,8 +204,14 @@ what it does (ssh mode):
   3. Write the token to ~/.config/proxmox-cli/credentials.json (mode 0600),
      backing up any existing file to credentials.json.bak.
 
+what it does (manual mode, the default):
+  1. Prints the flat pveum/pvesh commands to run on a node as root.
+  2. You run them, copy the token secret from the pvesh output.
+  3. (Interactive) proxmox prompts for the secret and writes credentials.json;
+     (--non-interactive/--no-write) it prints a credentials.json template instead.
+
 notes:
-  - 'ssh' mode needs no existing credentials.json; 'api' mode does.
+  - 'manual' and 'ssh' modes need no existing credentials.json; 'api' mode does.
   - The token secret is shown ONCE at creation; capture --json or use --no-write.
 """
 
@@ -232,10 +239,17 @@ def register_auth_parser(subparsers: argparse._SubParsersAction) -> None:
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     setup.add_argument(
-        "--via", choices=["ssh", "api"], default="ssh",
-        help="Transport: 'ssh' (default) runs an idempotent script on a PVE node "
-             "as root@pam and writes credentials.json; 'api' uses an existing "
-             "admin token over the REST API (roles + ACLs only, legacy).",
+        "--via", choices=["manual", "ssh", "api"], default="manual",
+        help="Transport: 'manual' (default) prints pveum/pvesh commands to "
+             "copy-paste on a node (no SSH needed); 'ssh' runs an idempotent "
+             "script on a PVE node as root@pam and writes credentials.json; "
+             "'api' uses an existing admin token over the REST API (roles + "
+             "ACLs only, legacy).",
+    )
+    setup.add_argument(
+        "--auto", action="store_true",
+        help="Shorthand for --via ssh: run setup automatically over SSH "
+             "(the previous default behaviour).",
     )
     # SSH transport
     setup.add_argument("--host", help="PVE node hostname/IP to SSH into (ssh mode; prompted if omitted).")
@@ -353,14 +367,149 @@ def _want_json(args: argparse.Namespace) -> bool:
 def _auth_setup(args: argparse.Namespace, client: ProxmoxClient | None = None) -> dict | None:
     """Bootstrap proxcli roles, an API token, and ACLs.
 
-    Dispatches on ``--via``: ``ssh`` (default) runs an idempotent script on a
-    PVE node and writes credentials.json; ``api`` uses an existing admin token
-    over the REST API (roles + ACLs only).
+    Dispatches on ``--via`` (default ``manual``): ``manual`` prints flat
+    pveum/pvesh commands to copy-paste on a node (no SSH needed); ``ssh``
+    (or ``--auto``) runs an idempotent script on a PVE node and writes
+    credentials.json; ``api`` uses an existing admin token over the REST API.
     """
     json_mode = _want_json(args)
-    if getattr(args, "via", "ssh") == "api":
+    via = "ssh" if getattr(args, "auto", False) else getattr(args, "via", "manual")
+    if via == "api":
         return _auth_setup_api(args, client, json_mode)
-    return _auth_setup_ssh(args, json_mode)
+    if via == "ssh":
+        return _auth_setup_ssh(args, json_mode)
+    return _auth_setup_manual(args, json_mode)
+
+
+def _resolve_api_url(args: argparse.Namespace) -> str | None:
+    """Derive the API URL from --api-url or --host (-> https://<host>:8006)."""
+    api_url = getattr(args, "api_url", None)
+    if api_url:
+        return api_url
+    host = getattr(args, "host", None)
+    if host:
+        return f"https://{host}:8006"
+    return None
+
+
+def _credentials_template(api_url: str, pve_user: str, token_name: str, verify_tls: bool) -> str:
+    """Return a JSON credentials template with a placeholder secret."""
+    import json as _json
+    return _json.dumps(
+        {
+            "url": api_url,
+            "username": pve_user,
+            "auth_method": AuthMethod.API_TOKEN.value,
+            "api_token_id": token_name,
+            "api_token_secret": "<paste-token-secret-here>",
+            "verify_tls": verify_tls,
+        },
+        indent=2,
+    )
+
+
+def _auth_setup_manual(args: argparse.Namespace, json_mode: bool) -> dict | None:
+    """Manual setup: print copy-pasteable pveum/pvesh commands for the node.
+
+    This is the default mode. No SSH access is required — the user runs the
+    printed commands on a PVE node as root, captures the token secret from the
+    ``pvesh`` output, and (in interactive mode) pastes it back here so proxcli
+    can write ``credentials.json``. With ``--non-interactive``/``--no-write`` a
+    credentials template is printed instead; with ``--json`` the commands are
+    returned as structured output for agents.
+    """
+    console = Console(stderr=True, quiet=json_mode)
+
+    pve_user = getattr(args, "pve_user", "root@pam") or "root@pam"
+    token_name = getattr(args, "token_name", "proxcli") or "proxcli"
+    privsep = bool(getattr(args, "privsep", True))
+    regenerate = bool(getattr(args, "regenerate", False))
+    allow_guest_exec = bool(getattr(args, "allow_guest_exec", False))
+    dry_run = bool(getattr(args, "dry_run", False))
+    no_write = bool(getattr(args, "no_write", False))
+    non_interactive = bool(getattr(args, "non_interactive", False))
+    verify_tls = not getattr(args, "insecure", False)
+
+    spec = SetupSpec(
+        pve_user=pve_user,
+        token_name=token_name,
+        privsep=privsep,
+        regenerate=regenerate,
+        roles=_build_roles(allow_guest_exec),
+        acls=list(PROXCLI_ACLS),
+    )
+    commands = generate_manual_commands(spec)
+
+    # JSON mode (agents/scripts): emit commands + template, never prompt.
+    if json_mode:
+        api_url = _resolve_api_url(args) or "https://<pve-host>:8006"
+        return {
+            "via": "manual",
+            "pve_user": pve_user,
+            "token_name": token_name,
+            "api_url": api_url,
+            "commands": commands,
+            "instructions": (
+                "Run the commands on a Proxmox node as root, capture the "
+                "'value' field from the pvesh output (the token secret), then "
+                "write it to credentials.json — or re-run with --auto to let "
+                "proxcli do it over SSH."
+            ),
+            "credentials_template": _credentials_template(
+                api_url, pve_user, token_name, verify_tls
+            ),
+        }
+
+    # Human mode: print the commands to stdout (the copy-paste target).
+    sys.stdout.write(commands)
+    sys.stdout.flush()  # ensure commands precede the stderr instructions below
+
+    # --dry-run / --non-interactive / --no-write: no prompt, print a template.
+    if dry_run or non_interactive or no_write:
+        api_url = _resolve_api_url(args) or "https://<pve-host>:8006"
+        console.print("\n[bold]Next steps:[/]")
+        console.print("  1. Run the commands above on a PVE node as [bold]root[/].")
+        console.print("  2. Copy the [bold]value[/] field from the [cyan]pvesh create[/] output — that's the token secret.")
+        console.print("  3. Save it to [bold]~/.config/proxmox-cli/credentials.json[/]:")
+        console.print()
+        console.print(_credentials_template(api_url, pve_user, token_name, verify_tls))
+        console.print()
+        console.print("  Or re-run interactively ([bold]proxmox auth setup[/]) to paste the secret and have proxcli write the file.")
+        return None
+
+    # Interactive: prompt for the secret, then write credentials.json.
+    api_url = _resolve_api_url(args)
+    if not api_url:
+        api_url = Prompt.ask(
+            "[bold]Proxmox API URL[/] (e.g. https://pve01:8006)", console=console
+        )
+    if not api_url:
+        raise ProxmoxError("an API URL is required to write credentials.json")
+
+    console.print("\n[bold]After running the commands on the node,[/] paste the token secret")
+    console.print("(the [bold]value[/] field from the [cyan]pvesh create[/] JSON output).")
+    secret = Prompt.ask("Token secret", password=True, console=console)
+    if not secret:
+        console.print("[yellow]![/] No secret entered — credentials.json not written.")
+        console.print("    Re-run when you have the secret, or write credentials.json by hand.")
+        return None
+
+    creds = {
+        "url": api_url,
+        "username": pve_user,
+        "auth_method": AuthMethod.API_TOKEN.value,
+        "api_token_id": token_name,
+        "api_token_secret": secret,
+        "verify_tls": verify_tls,
+    }
+    try:
+        path = ConfigWriter().save(creds, force=getattr(args, "force", False))
+        console.print(f"\n[green]✓[/] Credentials written to [bold]{path}[/] (mode 0600)")
+        console.print("    Verify with: [bold]proxmox auth status --permissions[/]")
+    except ConfigError as exc:
+        console.print(f"\n[yellow]![/] {exc}")
+        console.print("    Re-run with [bold]--force[/] to overwrite (a .bak is kept).")
+    return None
 
 
 def _auth_setup_ssh(args: argparse.Namespace, json_mode: bool) -> dict | None:

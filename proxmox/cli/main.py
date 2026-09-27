@@ -376,16 +376,20 @@ def main(argv: list[str] | None = None) -> None:
         # These commands don't need a pre-built client:
         #   - completion / update           : self-contained
         #   - auth status (no --permissions): reads config file only
-        #   - auth setup --via ssh          : bootstraps credentials itself
-        auth_setup_ssh = (
+        #   - auth setup (manual/ssh/--auto): bootstraps credentials itself;
+        #     only --via api needs an existing admin token/client.
+        auth_setup_no_client = (
             args.resource == "auth"
             and getattr(args, "action", None) == "setup"
-            and getattr(args, "via", "ssh") == "ssh"
+            and (
+                getattr(args, "via", "manual") in ("manual", "ssh")
+                or getattr(args, "auto", False)
+            )
         )
         if (
             args.resource == "completion"
             or args.resource == "update"
-            or auth_setup_ssh
+            or auth_setup_no_client
             or (
                 args.resource == "auth"
                 and args.action == "status"

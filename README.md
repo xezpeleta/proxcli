@@ -22,15 +22,19 @@ uv tool install .
 ## Quickstart
 
 ```bash
-# Bootstrap credentials + permissions on a node in one step.
-# Requires SSH access to a Proxmox node as root@pam (key auth by default).
-proxmox auth setup --host pve01.lan
+# Default (manual): print the pveum/pvesh commands to run on a node as root.
+# No SSH access required — review the commands, run them on a Proxmox node,
+# then paste the token secret back when prompted (writes credentials.json):
+proxmox auth setup
+
+# Automatic over SSH (needs SSH key or sshpass to a node as root@pam):
+#    proxmox auth setup --auto --host pve01.lan
 #    → creates the recommended proxcli roles, an API token, and ACLs on the node
 #    → writes the token to ~/.config/proxmox-cli/credentials.json (mode 0600)
-# Preview the script without changing anything:
-#    proxmox auth setup --host pve01.lan --dry-run
+# Preview the SSH script without changing anything:
+#    proxmox auth setup --auto --host pve01.lan --dry-run
 # Password auth (needs sshpass installed):
-#    proxmox auth setup --host pve01.lan --ssh-password-stdin
+#    proxmox auth setup --auto --host pve01.lan --ssh-password-stdin
 
 # Check auth status
 proxmox auth status
@@ -74,25 +78,28 @@ Credentials are stored in `~/.config/proxmox-cli/credentials.json` with restrict
 
 ### Recommended: `auth setup`
 
-`proxmox auth setup --host <node>` SSHes into a Proxmox node as `root@pam` and, in one idempotent pass, creates the recommended `proxcli-*` roles, an API token, and the ACLs that bind them — then writes the resulting token secret to `credentials.json` for you.
+`proxmox auth setup` has two modes:
+
+- **`manual` (default)** — prints the flat `pveum`/`pvesh` commands to run on a Proxmox node as `root`. No SSH access is required: review the commands, paste them into a root shell on a node, copy the token secret from the `pvesh` output, then paste it back when proxcli prompts you (it writes `credentials.json` for you). Add `--non-interactive` (or `--no-write`) to instead get a `credentials.json` template with no prompt.
+- **`ssh` (`--auto` or `--via ssh`)** — SSHes into a Proxmox node as `root@pam` and, in one idempotent pass, creates the `proxcli-*` roles, an API token, and the ACLs — then writes the token secret to `credentials.json` for you.
 
 ```bash
-# Key-based SSH auth (default):
-proxmox auth setup --host pve01.lan
+# Default (manual) — no SSH needed, review and run the commands on a node:
+proxmox auth setup
+# Non-interactive manual (agents/scripts): print commands + a credentials template
+proxmox auth setup --non-interactive --json
 
+# Automatic over SSH (key auth by default):
+proxmox auth setup --auto --host pve01.lan
 # Password auth (requires sshpass):
-proxmox auth setup --host pve01.lan --ssh-password-stdin
-
-# Preview the generated script without touching the node:
-proxmox auth setup --host pve01.lan --dry-run
-
-# JSON output for agents/automation:
-proxmox auth setup --host pve01.lan --dry-run --json
+proxmox auth setup --auto --host pve01.lan --ssh-password-stdin
+# Preview the SSH script without touching the node:
+proxmox auth setup --auto --host pve01.lan --dry-run
 ```
 
-Options: `--ssh-user`, `--port`, `-i/--identity`, `--pve-user` (default `root@pam`), `--token-name` (default `proxcli`), `--privsep/--no-privsep` (default on — privilege separation), `--regenerate` (rotate the token secret), `--force` (overwrite an existing `credentials.json`), `--no-write` (run on the node but don't save locally).
+Options: `--pve-user` (default `root@pam`), `--token-name` (default `proxcli`), `--privsep/--no-privsep` (default on — privilege separation), `--regenerate` (rotate the token secret), `--force` (overwrite an existing `credentials.json`), `--no-write`, `--api-url` (the URL written to `credentials.json`; derived from `--host` if omitted).
 
-The legacy `--via api` path uses an existing Administrator token over the REST API to create roles + ACLs only (it cannot capture or write the token secret). Prefer `--via ssh`.
+The legacy `--via api` path uses an existing Administrator token over the REST API to create roles + ACLs only (it cannot capture or write the token secret). Prefer the default `manual` mode or `--auto`.
 
 ### Manual config file
 
@@ -154,8 +161,9 @@ proxmox --insecure vm list
 ```bash
 proxmox auth status            # Show current auth context
 proxmox auth status --permissions  # + effective permissions from API
-proxmox auth setup             # Bootstrap roles + token + ACLs (SSH as root@pam, writes credentials.json)
-proxmox auth setup --dry-run   # Preview the generated script without changing anything
+proxmox auth setup             # Default: print pveum/pvesh commands to run on a node (no SSH needed)
+proxmox auth setup --auto --host pve01  # Run automatically over SSH as root@pam (writes credentials.json)
+proxmox auth setup --dry-run   # Preview the commands without changing anything
 proxmox auth check             # Live permission test table (39 checks)
 ```
 
