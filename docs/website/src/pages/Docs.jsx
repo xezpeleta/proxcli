@@ -43,6 +43,7 @@ const navSections = [
     items: [
       { path: '/docs/command-reference', label: 'Command Reference', commandRef: true, icon: Terminal },
       { path: '/docs/api-coverage', label: 'API Coverage', file: 'api-coverage.md', icon: Code2 },
+      { path: '/docs/agent-guide', label: 'Agent Guide', file: 'agent-guide.md', icon: BookOpen },
     ]
   },
 ]
@@ -277,13 +278,20 @@ function CommandReferenceDocInner() {
         { name: 'list', desc: 'List VMs across the cluster or on a specific node' },
         { name: 'show <vmid>', desc: 'Show full VM status and configuration' },
         { name: 'config <vmid>', desc: 'Export clean VM config (suitable for --file import)' },
-        { name: 'create', desc: 'Create a new VM from flags or --file YAML spec' },
+        { name: 'set <vmid>', desc: 'Update VM config (--option key=value, cloud-init keys, --tag, --clear-tags)' },
+        { name: 'create', desc: 'Create a new VM from flags or --file YAML spec (--tag to label)' },
         { name: 'start <vmid>', desc: 'Start a stopped VM' },
         { name: 'stop <vmid>', desc: 'Stop a running VM (graceful ACPI shutdown)' },
         { name: 'reboot <vmid>', desc: 'Reboot a running VM' },
         { name: 'suspend <vmid>', desc: 'Suspend VM to disk (hibernate)' },
         { name: 'resume <vmid>', desc: 'Resume a suspended VM' },
         { name: 'delete <vmid>', desc: 'Permanently delete a VM and all its disks' },
+        { name: 'clone <vmid>', desc: 'Clone a VM (--newid, --full or linked, --name)' },
+        { name: 'migrate <vmid>', desc: 'Migrate a VM to another node (--target, --online)' },
+        { name: 'template <vmid>', desc: 'Convert a VM into a template' },
+        { name: 'ip <vmid>', desc: 'Show IP addresses (requires guest agent)' },
+        { name: 'iso … <vmid>', desc: 'Attach/detach ISO images (attach, detach)' },
+        { name: 'disk … <vmid>', desc: 'Manage disks — resize, import, detach, remove' },
         { name: 'snapshot', desc: 'Manage snapshots — list, create, show, rollback, delete', nested: [
           { name: 'list <vmid>', desc: 'List snapshots for a VM' },
           { name: 'create <vmid> <name>', desc: 'Create a named snapshot (optionally with --description)' },
@@ -293,6 +301,10 @@ function CommandReferenceDocInner() {
         ]},
         { name: 'agent', desc: 'Query QEMU guest agent', nested: [
           { name: 'interfaces <vmid>', desc: 'List network interfaces via guest agent' },
+          { name: 'osinfo <vmid>', desc: 'Get guest OS information' },
+          { name: 'fsinfo <vmid>', desc: 'Get guest filesystem information' },
+          { name: 'users <vmid>', desc: 'List logged-in guest user accounts' },
+          { name: 'exec <vmid> -- <cmd> [args...]', desc: 'Execute a command in the guest and return output' },
         ]},
         { name: 'cloudinit generate <vmid>', desc: 'Regenerate cloud-init ISO for a VM' },
         { name: 'firewall …', desc: 'Manage VM firewall', nested: [
@@ -320,10 +332,11 @@ function CommandReferenceDocInner() {
       subcommands: [
         { name: 'list', desc: 'List containers across the cluster' },
         { name: 'show <vmid>', desc: 'Show container status and configuration' },
-        { name: 'create', desc: 'Create a new container from a template' },
+        { name: 'create', desc: 'Create a new container from a template (--tag to label)' },
         { name: 'start <vmid>', desc: 'Start a stopped container' },
         { name: 'stop <vmid>', desc: 'Stop a running container' },
         { name: 'delete <vmid>', desc: 'Delete a container and its rootfs' },
+        { name: 'ip <vmid>', desc: 'Show container IP addresses' },
         { name: 'firewall … <vmid>', desc: 'Manage container firewall — rules list/add/show/update/delete' },
       ],
       examples: [
@@ -392,7 +405,7 @@ function CommandReferenceDocInner() {
     {
       resource: 'cluster',
       icon: Globe,
-      desc: 'Cluster status, logs, options, and firewall management.',
+      desc: 'Cluster status, logs, options, firewall, and HA/SDN inspection (read-only).',
       subcommands: [
         { name: 'status', desc: 'Show cluster quorum status and node membership' },
         { name: 'log', desc: 'Show cluster task log (--max N to limit entries)' },
@@ -407,12 +420,29 @@ function CommandReferenceDocInner() {
           { name: 'ipsets …', desc: 'Manage ipsets — list, add, show, delete, add-cidr, delete-cidr' },
           { name: 'refs', desc: 'List firewall references' },
         ]},
+        { name: 'ha …', desc: 'High Availability inspection (read-only)', nested: [
+          { name: 'status', desc: 'Show HA manager status' },
+          { name: 'config', desc: 'Show HA manager configuration' },
+          { name: 'resources …', desc: 'List HA resources, or show <sid>' },
+          { name: 'groups …', desc: 'List HA groups, or show <group>' },
+        ]},
+        { name: 'sdn …', desc: 'Software-Defined Networking inspection (read-only)', nested: [
+          { name: 'overview', desc: 'List SDN objects across zones/vnets/subnets' },
+          { name: 'pending', desc: 'Show pending SDN changes' },
+          { name: 'zones …', desc: 'List SDN zones, or show <zone>' },
+          { name: 'vnets …', desc: 'List SDN vnets, or show <vnet>' },
+          { name: 'controllers …', desc: 'List SDN controllers, or show <controller>' },
+          { name: 'subnets …', desc: 'List SDN subnets, or show <subnet>' },
+          { name: 'ipams', desc: 'List SDN IPAM plugins' },
+          { name: 'dns', desc: 'Show SDN DNS configuration' },
+        ]},
       ],
       examples: [
         'proxmox cluster status',
         'proxmox cluster log --max 50',
+        'proxmox cluster ha resources',
+        'proxmox cluster sdn zones',
         'proxmox cluster firewall rules list',
-        'proxmox cluster firewall aliases add www --cidr 10.0.0.0/8',
       ],
     },
     {
@@ -434,25 +464,28 @@ function CommandReferenceDocInner() {
     {
       resource: 'task',
       icon: Clock,
-      desc: 'Task listing, details, and real-time log streaming.',
+      desc: 'Task listing, details, blocking wait, and real-time log streaming.',
       subcommands: [
         { name: 'list', desc: 'List recent tasks across the cluster' },
         { name: 'show <upid>', desc: 'Show task details and exit status' },
+        { name: 'wait <upid>', desc: 'Block until a task completes (--timeout ms)' },
         { name: 'log <upid>', desc: 'Stream task log in real time (--follow for tail -f)' },
       ],
       examples: [
         'proxmox task list',
         'proxmox task list --node pve01 --limit 20',
+        'proxmox task wait UPID:pve01:000A1B2C:... --timeout 60000',
         'proxmox task log UPID:pve01:000A1B2C:... --follow',
       ],
     },
     {
       resource: 'backup',
       icon: Shield,
-      desc: 'vzdump backup management — create, list, delete, snapshot/suspend/stop modes.',
+      desc: 'vzdump backup management — create, list, restore, delete, snapshot/suspend/stop modes.',
       subcommands: [
         { name: 'list', desc: 'List existing backups' },
         { name: 'create', desc: 'Create a new backup (snapshot, suspend, or stop mode)' },
+        { name: 'restore', desc: 'Restore a backup to a new VM or container (auto-detects guest type)' },
         { name: 'delete <backup-id>', desc: 'Delete a backup' },
         { name: 'show <backup-id>', desc: 'Show backup details' },
         { name: 'tasks', desc: 'List backup tasks and their status' },
@@ -535,13 +568,38 @@ function CommandReferenceDocInner() {
       desc: 'Authentication — status, setup, and permission verification.',
       subcommands: [
         { name: 'status', desc: 'Show current authentication context and effective user' },
-        { name: 'setup', desc: 'Bootstrap roles and ACLs for proxcli (requires Administrator)' },
+        { name: 'setup', desc: 'Print pveum/pvesh commands to bootstrap a least-privilege token (default: manual, no SSH; --auto runs them over SSH)' },
         { name: 'check', desc: 'Validate the current token and list effective privileges' },
       ],
       examples: [
         'proxmox auth status',
         'proxmox auth setup',
         'proxmox auth check',
+      ],
+    },
+    {
+      resource: 'update',
+      icon: Zap,
+      desc: 'Check for and install proxcli updates from PyPI.',
+      subcommands: [
+        { name: '', desc: 'Self-update — checks PyPI for a newer proxcli and installs it. Run `proxmox update` directly (no sub-action).' },
+      ],
+      examples: [
+        'proxmox update',
+      ],
+    },
+    {
+      resource: 'completion',
+      icon: Code2,
+      desc: 'Generate shell completion scripts (bash, zsh, fish) from the parser tree.',
+      subcommands: [
+        { name: 'bash', desc: 'Print bash completion script' },
+        { name: 'zsh', desc: 'Print zsh completion script' },
+        { name: 'fish', desc: 'Print fish completion script' },
+      ],
+      examples: [
+        'proxmox completion bash',
+        'proxmox completion zsh',
       ],
     },
     {
@@ -874,6 +932,9 @@ export default function DocsLayout() {
               } />
               <Route path="api-coverage" element={
                 <ApiCoveragePage />
+              } />
+              <Route path="agent-guide" element={
+                <MarkdownDocPage title="Agent Guide" file="agent-guide.md" icon={BookOpen} />
               } />
               <Route path="command-reference" element={<CommandReferenceDocInner />} />
             </Routes>

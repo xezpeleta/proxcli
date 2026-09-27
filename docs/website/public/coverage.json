@@ -2,8 +2,8 @@
   {
     "category": "VM lifecycle",
     "icon": "Server",
-    "total": 28,
-    "done": 28,
+    "total": 32,
+    "done": 32,
     "groups": [
       { "name": "CRUD", "done": 6, "total": 6, "items": [
         {"name": "list", "status": "done"},
@@ -13,11 +13,12 @@
         {"name": "stop", "status": "done"},
         {"name": "delete", "status": "done"}
       ]},
-      { "name": "Lifecycle ops", "done": 4, "total": 4, "items": [
+      { "name": "Lifecycle ops", "done": 5, "total": 5, "items": [
         {"name": "reboot", "status": "done"},
         {"name": "suspend", "status": "done"},
         {"name": "resume", "status": "done"},
-        {"name": "config", "status": "done"}
+        {"name": "config", "status": "done"},
+        {"name": "set", "status": "done"}
       ]},
       { "name": "Snapshots", "done": 5, "total": 5, "items": [
         {"name": "snapshot list", "status": "done"},
@@ -26,46 +27,51 @@
         {"name": "snapshot rollback", "status": "done"},
         {"name": "snapshot delete", "status": "done"}
       ]},
-      { "name": "Advanced", "done": 9, "total": 9, "items": [
+      { "name": "Advanced", "done": 11, "total": 11, "items": [
         {"name": "clone", "status": "done"},
         {"name": "migrate", "status": "done"},
         {"name": "template", "status": "done"},
         {"name": "disk resize", "status": "done"},
+        {"name": "disk import", "status": "done"},
         {"name": "disk detach", "status": "done"},
         {"name": "disk remove", "status": "done"},
         {"name": "iso attach/detach", "status": "done"},
         {"name": "ip lookup", "status": "done"},
-        {"name": "cloud-init", "status": "done"}
+        {"name": "cloud-init", "status": "done"},
+        {"name": "tags", "status": "done"}
       ]},
-      { "name": "Guest agent", "done": 4, "total": 4, "items": [
+      { "name": "Guest agent", "done": 5, "total": 5, "items": [
         {"name": "agent interfaces", "status": "done"},
         {"name": "agent osinfo", "status": "done"},
         {"name": "agent fsinfo", "status": "done"},
-        {"name": "agent users", "status": "done"}
+        {"name": "agent users", "status": "done"},
+        {"name": "agent exec", "status": "done"}
       ]}
     ]
   },
   {
     "category": "VM firewall",
     "icon": "Shield",
-    "total": 10,
-    "done": 10,
+    "total": 8,
+    "done": 8,
     "groups": [
-      { "name": "Core", "done": 6, "total": 6, "items": [
+      { "name": "Core", "done": 8, "total": 8, "items": [
         {"name": "options", "status": "done"},
         {"name": "enable", "status": "done"},
         {"name": "disable", "status": "done"},
         {"name": "policy", "status": "done"},
         {"name": "refs", "status": "done"},
-        {"name": "rules CRUD", "status": "done"}
+        {"name": "rules CRUD", "status": "done"},
+        {"name": "aliases CRUD", "status": "done"},
+        {"name": "ipsets CRUD", "status": "done"}
       ]}
     ]
   },
   {
     "category": "Containers",
     "icon": "Container",
-    "total": 12,
-    "done": 12,
+    "total": 14,
+    "done": 14,
     "groups": [
       { "name": "CRUD", "done": 6, "total": 6, "items": [
         {"name": "list", "status": "done"},
@@ -83,16 +89,17 @@
         {"name": "refs", "status": "done"},
         {"name": "rules CRUD", "status": "done"}
       ]},
-      { "name": "Advanced", "done": 1, "total": 1, "items": [
-        {"name": "ip lookup", "status": "done"}
+      { "name": "Advanced", "done": 2, "total": 2, "items": [
+        {"name": "ip lookup", "status": "done"},
+        {"name": "tags (on create)", "status": "done"}
       ]}
     ]
   },
   {
     "category": "Nodes",
     "icon": "Server",
-    "total": 12,
-    "done": 12,
+    "total": 17,
+    "done": 17,
     "groups": [
       { "name": "Read ops", "done": 11, "total": 11, "items": [
         {"name": "list", "status": "done"},
@@ -135,15 +142,15 @@
   {
     "category": "Cluster",
     "icon": "Globe",
-    "total": 6,
-    "done": 6,
+    "total": 29,
+    "done": 29,
     "groups": [
       { "name": "Core", "done": 3, "total": 3, "items": [
         {"name": "status", "status": "done"},
         {"name": "log", "status": "done"},
         {"name": "options", "status": "done"}
       ]},
-      { "name": "Firewall", "done": 10, "total": 10, "items": [
+      { "name": "Firewall", "done": 8, "total": 8, "items": [
         {"name": "options", "status": "done"},
         {"name": "enable", "status": "done"},
         {"name": "disable", "status": "done"},
@@ -152,6 +159,28 @@
         {"name": "rules CRUD", "status": "done"},
         {"name": "aliases CRUD", "status": "done"},
         {"name": "ipsets CRUD", "status": "done"}
+      ]},
+      { "name": "High Availability (read-only)", "done": 6, "total": 6, "items": [
+        {"name": "ha status", "status": "done"},
+        {"name": "ha config", "status": "done"},
+        {"name": "ha resources list", "status": "done"},
+        {"name": "ha resources show", "status": "done"},
+        {"name": "ha groups list", "status": "done"},
+        {"name": "ha groups show", "status": "done"}
+      ]},
+      { "name": "SDN (read-only)", "done": 12, "total": 12, "items": [
+        {"name": "sdn overview", "status": "done"},
+        {"name": "sdn pending", "status": "done"},
+        {"name": "sdn zones list", "status": "done"},
+        {"name": "sdn zones show", "status": "done"},
+        {"name": "sdn vnets list", "status": "done"},
+        {"name": "sdn vnets show", "status": "done"},
+        {"name": "sdn controllers list", "status": "done"},
+        {"name": "sdn controllers show", "status": "done"},
+        {"name": "sdn subnets list", "status": "done"},
+        {"name": "sdn subnets show", "status": "done"},
+        {"name": "sdn ipams", "status": "done"},
+        {"name": "sdn dns", "status": "done"}
       ]}
     ]
   },
@@ -172,8 +201,8 @@
   {
     "category": "Backups",
     "icon": "Shield",
-    "total": 7,
-    "done": 7,
+    "total": 6,
+    "done": 6,
     "groups": [
       { "name": "Ops", "done": 6, "total": 6, "items": [
         {"name": "list", "status": "done"},
@@ -242,12 +271,10 @@
   {
     "category": "Not yet",
     "icon": "Cog",
-    "total": 24,
+    "total": 16,
     "done": 0,
     "groups": [
-      { "name": "Cluster", "done": 0, "total": 8, "items": [
-        {"name": "HA status/resources", "status": "todo"},
-        {"name": "SDN (zones/vnets)", "status": "todo"},
+      { "name": "Cluster", "done": 0, "total": 6, "items": [
         {"name": "Replication jobs", "status": "todo"},
         {"name": "ACME certificates", "status": "todo"},
         {"name": "Metrics server", "status": "todo"},

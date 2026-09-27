@@ -156,7 +156,7 @@ function Features() {
     {
       icon: Container,
       title: 'VMs & Containers',
-      description: 'Full lifecycle management: create, clone, migrate, start, stop, snapshots, templates, ISO attach, disk resize, delete. Plus LXC containers.'
+      description: 'VMs: create, clone, migrate, start, stop, snapshots, templates, ISO attach, disk resize, firewall, tags. LXC containers: create, start, stop, firewall, IP lookup, tags.'
     },
     {
       icon: Shield,
@@ -227,20 +227,13 @@ function QuickStart() {
               <span className="w-8 h-8 bg-tertiary/10 text-tertiary rounded-md flex items-center justify-center text-sm font-bold">2</span>
               Configure credentials
             </h3>
-            <CodeBlock code={`mkdir -p ~/.config/proxmox-cli && chmod 700 ~/.config/proxmox-cli
+            <CodeBlock code={`# Recommended: print the pveum/pvesh commands to create a least-privilege token
+proxmox auth setup --host pve.example.com
 
-cat > ~/.config/proxmox-cli/credentials.json <<'EOF'
-{
-  "url": "https://192.168.1.10:8006",
-  "username": "root@pam",
-  "auth_method": "api_token",
-  "api_token_id": "my-token",
-  "api_token_secret": "deadbeef-...",
-  "verify_tls": false
-}
-EOF
-
-chmod 600 ~/.config/proxmox-cli/credentials.json`} />
+# Or set environment variables:
+export PROXMOX_URL=https://pve.example.com:8006
+export PROXMOX_TOKEN_ID=root@pam!proxcli
+export PROXMOX_TOKEN_SECRET=deadbeef-...`} />
           </div>
           <div>
             <h3 className="text-lg font-semibold text-primary mb-3 flex items-center gap-2">
@@ -279,7 +272,7 @@ proxmox task wait UPID:pve01:...`} />
               <div>
                 <h4 className="font-semibold text-primary mb-1">Install-to-first-command in under 60 seconds</h4>
                 <p className="text-secondary text-sm">
-                  uv tool install, one config file, and you&apos;re managing VMs from the terminal. 
+                  uv tool install, one setup command, and you&apos;re managing VMs from the terminal.
                   No web UI needed.
                 </p>
               </div>
@@ -372,7 +365,7 @@ function OutputFormats() {
   return (
     <section className="py-24">
       <div className="max-w-7xl mx-auto px-6">
-        <SectionTitle icon={Code2}>Three output formats</SectionTitle>
+        <SectionTitle icon={Code2}>Output formats</SectionTitle>
         <div className="grid md:grid-cols-3 gap-6">
           {formats.map((fmt) => (
             <div key={fmt.name} className="bg-surface border border-border rounded-lg overflow-hidden">
@@ -402,7 +395,7 @@ function OutputFormats() {
 
 function Stats() {
   const stats = [
-    { label: 'CLI Resources', value: '12', icon: Terminal },
+    { label: 'CLI Resources', value: '17', icon: Terminal },
     { label: 'Python Version', value: '3.10+', icon: Code2 },
     { label: 'Runtime Deps', value: '4', icon: Database },
     { label: 'Install Time', value: '≤60s', icon: Clock },
@@ -465,13 +458,13 @@ function CommandReference() {
     {
       resource: 'vm',
       icon: Monitor,
-      desc: 'QEMU virtual machines — create, list, clone, migrate, start, stop, reboot, snapshots, cloud-init, template, ISO attach, disk resize, guest agent',
+      desc: 'QEMU virtual machines — create, list, clone, migrate, start, stop, reboot, snapshots, cloud-init, template, ISO attach, disk resize, firewall, tags, guest agent',
       examples: ['proxmox vm list', 'proxmox vm clone 100 --newid 200 --full', 'proxmox vm migrate 100 --target pve02 --online', 'proxmox vm disk resize 100 --disk scsi0 --size +10G', 'proxmox vm agent exec 100 -- hostname']
     },
     {
       resource: 'container',
       icon: Container,
-      desc: 'LXC containers — create, list, start, stop, delete, IP lookup',
+      desc: 'LXC containers — create, list, start, stop, delete, firewall, IP lookup, tags',
       examples: ['proxmox container list', 'proxmox container create --node pve01 --ostemplate local:vztmpl/debian-12', 'proxmox container ip 100']
     },
     {
@@ -495,8 +488,14 @@ function CommandReference() {
     {
       resource: 'cluster',
       icon: Globe,
-      desc: 'Cluster status, log, options, Ceph health, OSDs, disk inventory',
-      examples: ['proxmox cluster status', 'proxmox ceph status', 'proxmox ceph disks']
+      desc: 'Cluster status, log, options, firewall, plus HA resources/groups & SDN zones/vnets inspection (read-only)',
+      examples: ['proxmox cluster status', 'proxmox cluster ha resources', 'proxmox cluster sdn zones', 'proxmox cluster firewall rules list']
+    },
+    {
+      resource: 'ceph',
+      icon: Database,
+      desc: 'Ceph cluster health, OSD status, and physical disk inventory',
+      examples: ['proxmox ceph status', 'proxmox ceph osd --node pve01', 'proxmox ceph disks --node pve01']
     },
     {
       resource: 'task',

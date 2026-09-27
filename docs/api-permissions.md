@@ -162,7 +162,7 @@ pvesh set /access/acl --path /sdn     --roles proxcli-network --tokenid proxcli 
 
 | Path | Role | Why |
 |------|------|-----|
-| `/` | `proxcli-sys` | `cluster status`, `node show`, `task list`, `ceph status`, `cluster log`, `cluster firewall` |
+| `/` | `proxcli-sys` | `cluster status`, `node show`, `task list`, `ceph status`, `cluster log`, `cluster firewall`, `cluster ha` (read-only) |
 | `/storage` | `proxcli-storage` | `storage list/upload`, `vm create` (disk + import) |
 | `/vms` | `proxcli-vm` | `vm list/create/start/stop`, snapshots, backups, `pool` |
 | `/nodes` | `proxcli-node` | QEMU guest agent interfaces, per-node Ceph logs |

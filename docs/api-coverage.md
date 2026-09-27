@@ -1,6 +1,6 @@
 # proxcli API Coverage
 
-Last updated: 2026-06-22
+Last updated: 2026-09-28
 
 The coverage visualization above shows at a glance which Proxmox VE API
 areas are fully implemented, partially covered, or not yet started.
@@ -26,6 +26,7 @@ its underlying REST API endpoint and HTTP method.
 | `resume <vmid>` | POST | `/nodes/{node}/qemu/{vmid}/status/resume` |
 | `delete <vmid>` | DELETE | `/nodes/{node}/qemu/{vmid}` |
 | `config <vmid>` | GET | `/nodes/{node}/qemu/{vmid}/config` |
+| `set <vmid>` | PUT | `/nodes/{node}/qemu/{vmid}/config` (cloud-init keys, `--option key=value`, `--tag`, `--clear-tags`) |
 | `snapshot list <vmid>` | GET | `/nodes/{node}/qemu/{vmid}/snapshot` |
 | `snapshot create <vmid>` | POST | `/nodes/{node}/qemu/{vmid}/snapshot` |
 | `snapshot show <vmid> <name>` | GET | `/nodes/{node}/qemu/{vmid}/snapshot/{snapname}` |
@@ -38,6 +39,7 @@ its underlying REST API endpoint and HTTP method.
 | `iso attach <vmid>` | PUT | `/nodes/{node}/qemu/{vmid}/config` (ide2) |
 | `iso detach <vmid>` | PUT | `/nodes/{node}/qemu/{vmid}/config` (ide2=none) |
 | `disk resize <vmid>` | PUT | `/nodes/{node}/qemu/{vmid}/resize` |
+| `disk import <vmid>` | POST | `/nodes/{node}/qemu/{vmid}/disk/import` |
 | `disk detach <vmid>` | PUT | `/nodes/{node}/qemu/{vmid}/config` (disk=none) |
 | `disk remove <vmid>` | PUT | `/nodes/{node}/qemu/{vmid}/config` (delete=disk) |
 | `agent interfaces <vmid>` | GET | `/nodes/{node}/qemu/{vmid}/agent/network-get-interfaces` |
@@ -115,6 +117,41 @@ its underlying REST API endpoint and HTTP method.
 | `status` | GET | `/cluster/status` |
 | `log` | GET | `/cluster/log` |
 | `options` | GET | `/cluster/options` |
+
+#### High Availability (read-only)
+
+Mutating HA operations (add/remove resources, arm/disarm) are intentionally
+omitted — they affect cluster fencing and are unsafe for unattended use.
+Reach for `proxmox api` with `--dry-run` if you truly need them.
+
+| Subcommand | Method | API path |
+|---|---|---|
+| `ha status` | GET | `/cluster/ha/status/current` |
+| `ha config` | GET | `/cluster/ha/config` |
+| `ha resources list` | GET | `/cluster/ha/resources` |
+| `ha resources show <sid>` | GET | `/cluster/ha/resources/{sid}` |
+| `ha groups list` | GET | `/cluster/ha/groups` |
+| `ha groups show <group>` | GET | `/cluster/ha/groups/{group}` |
+
+#### Software-Defined Networking (read-only)
+
+Creating/applying SDN objects reconfigures live cluster networking and is
+omitted for safety.
+
+| Subcommand | Method | API path |
+|---|---|---|
+| `sdn overview` | GET | `/cluster/sdn` |
+| `sdn pending` | GET | `/cluster/sdn/pending` |
+| `sdn zones list` | GET | `/cluster/sdn/zones` |
+| `sdn zones show <zone>` | GET | `/cluster/sdn/zones/{zone}` |
+| `sdn vnets list` | GET | `/cluster/sdn/vnets` |
+| `sdn vnets show <vnet>` | GET | `/cluster/sdn/vnets/{vnet}` |
+| `sdn controllers list` | GET | `/cluster/sdn/controllers` |
+| `sdn controllers show <controller>` | GET | `/cluster/sdn/controllers/{controller}` |
+| `sdn subnets list` | GET | `/cluster/sdn/subnets` |
+| `sdn subnets show <subnet>` | GET | `/cluster/sdn/subnets/{subnet}` |
+| `sdn ipams` | GET | `/cluster/sdn/ipams` |
+| `sdn dns` | GET | `/cluster/sdn/dns` |
 
 #### Cluster firewall
 
@@ -207,12 +244,10 @@ its underlying REST API endpoint and HTTP method.
 ## Not yet implemented
 
 <details>
-<summary><strong>Cluster-level</strong> (7 areas)</summary>
+<summary><strong>Cluster-level</strong> (5 areas)</summary>
 
 | Area | Endpoints | Effort |
 |---|---|---|
-| HA | `/cluster/ha/{status,resources,groups}` | Medium |
-| SDN | `/cluster/sdn/{zones,vnets,subnets,controllers}` | Large |
 | Replication | `/cluster/replication` | Medium |
 | ACME certs | `/cluster/acme/{account,plugins,challenge-schema,tos}` | Medium |
 | Metrics server | `/cluster/metrics/server` | Small |
@@ -220,6 +255,9 @@ its underlying REST API endpoint and HTTP method.
 | Backup info | `/cluster/backup-info` | Small |
 
 </details>
+
+> HA (read-only) and SDN (read-only) were added in v0.21.0. Mutating HA/SDN
+> operations remain available via the `proxmox api` escape hatch.
 
 <details>
 <summary><strong>Node-level</strong> (8 areas)</summary>

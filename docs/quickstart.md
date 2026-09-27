@@ -6,13 +6,13 @@ installation, authentication, and your first commands.
 ## Installation
 
 ```bash
-pip install proxcli
+uv tool install proxcli
 ```
 
-Or with `uv`:
+Or with `pip`:
 
 ```bash
-uv tool install proxcli
+pip install proxcli
 ```
 
 Verify:
@@ -23,9 +23,33 @@ proxmox --version
 
 ## Authentication
 
-proxcli supports three auth methods. The recommended approach is an **API token**:
+proxcli supports three auth methods. The recommended approach is
+**`auth setup`**, which creates a least-privilege API token for you.
 
-### API Token (recommended)
+### `auth setup` (recommended)
+
+By default, `auth setup` prints the exact `pveum`/`pvesh` commands to run
+on a Proxmox node as `root` — **no SSH access required**. Review the
+commands, paste them into a root shell on a node, copy the token secret
+from the `pvesh` output, and paste it back when proxcli prompts you
+(it writes `credentials.json` for you):
+
+```bash
+proxmox auth setup --host pve.example.com
+```
+
+Add `--auto` to instead run the commands over SSH in one idempotent pass:
+
+```bash
+proxmox auth setup --host pve.example.com --auto
+```
+
+See [API Permissions & Least Privilege](#/docs/permissions) for what the
+`proxcli-*` roles grant.
+
+### API token (manual)
+
+If you prefer to create the token by hand in the web UI:
 
 1.  In the Proxmox VE web UI, go to **Datacenter → Permissions → API Tokens**.
 2.  Click **Add**, select a user (e.g. `root@pam`), and uncheck
@@ -112,7 +136,7 @@ proxmox task log UPID:pve01:... --output log --follow
 ### Select columns
 
 ```bash
-proxmox vm list --output table --columns vmid name status mem
+proxmox vm list --output table --columns vmid,name,status,mem
 ```
 
 ## Next steps
