@@ -85,5 +85,38 @@
   </head>
   <body>
     <div id="root"></div>
+    <noscript>
+      <!--
+        Static fallback for crawlers that don't execute JavaScript (Bing,
+        DuckDuckGo, many bots) and for humans with JS disabled.
+        Mirrors the React landing page's marketing copy so the page has
+        indexable content even before the JS bundle hydrates.
+      -->
+      <div style="max-width:780px;margin:0 auto;padding:48px 24px;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#0f172a;background:#ffffff;">
+        <p style="margin:0 0 8px;font-family:monospace;color:#3b82f6;font-weight:700;">$ proxcli</p>
+        <h1 style="font-size:2.4rem;line-height:1.1;margin:0 0 8px;">proxcli</h1>
+        <p style="font-size:1.3rem;color:#3b82f6;font-weight:600;margin:0 0 20px;">Proxmox VE CLI &mdash; for humans &amp; agents</p>
+        <p style="font-size:1.1rem;line-height:1.5;margin:0 0 24px;">
+          A command-line tool to automate every corner of your Proxmox VE cluster
+          from the terminal. Beautiful tables for humans, structured JSON for AI
+          agents, and a single binary with <code>--dry-run</code> confidence.
+        </p>
+        <p style="font-size:1rem;margin:0 0 24px;">Install:</p>
+        <pre style="background:#0f172a;color:#e2e8f0;padding:16px 20px;border-radius:8px;font-family:monospace;overflow-x:auto;font-size:0.95rem;">$ uv tool install proxcli</pre>
+        <h2 style="font-size:1.2rem;margin:28px 0 12px;">What it does</h2>
+        <ul style="font-size:1rem;line-height:1.7;margin:0 0 24px;padding-left:20px;">
+          <li>Manage VMs (QEMU) and containers (LXC) &mdash; list, show, start, stop, clone, snapshot, migrate.</li>
+          <li>Inspect nodes, storage, and cluster status.</li>
+          <li>Declarative VM specs from YAML (<code>--file</code>); export existing configs with <code>--output yaml</code>.</li>
+          <li>Cloud-init, firewall, and API-permission bootstrapping (<code>auth setup</code>).</li>
+          <li><code>--output json</code> by default for agents; <code>--dry-run</code> for every mutating call.</li>
+        </ul>
+        <p style="font-size:1rem;margin:24px 0 8px;">
+          <a href="https://github.com/xezpeleta/proxcli" style="color:#3b82f6;">View on GitHub</a>
+          &nbsp;&middot;&nbsp;
+          <a href="https://pypi.org/project/proxcli/" style="color:#3b82f6;">PyPI</a>
+        </p>
+      </div>
+    </noscript>
   </body>
 </html>
