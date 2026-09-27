@@ -156,7 +156,7 @@ function Features() {
     {
       icon: Shield,
       title: 'Backup & Restore',
-      description: 'Create vzdump backups (snapshot/suspend/stop) and restore them to new VMs or containers. Auto-detects guest type from backup volume.'
+      description: 'Inspect vzdump backups — list, show, task history. Restore to new VMs or containers (auto-detects guest type). Create/delete are blocked by default for safety; snapshots remain available.'
     },
     {
       icon: Lock,

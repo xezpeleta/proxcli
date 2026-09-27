@@ -453,6 +453,12 @@ proxmox backup defaults [--node <node>] [--storage <storage>]
 Use `--all` instead of `--vmid` to back up all guests on a node.
 Backup tasks can be monitored with `proxmox task log <upid> --follow`.
 
+> **Backups are read-only by default.** The default `proxcli` roles omit
+> `Datastore.Allocate` and `VM.Backup`, so `backup create` and `backup delete`
+> return 403 out of the box. `list`, `show`, `tasks`, and `defaults` work.
+> To enable create/delete, add those privileges to a custom role — see
+> [`docs/api-permissions.md`](docs/api-permissions.md#backups-are-read-only-by-default).
+
 ### User
 
 ```bash

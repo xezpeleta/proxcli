@@ -20,9 +20,20 @@ from proxmox.ssh.script import SetupSpec, generate_manual_commands, generate_set
 # Recommended roles for proxcli (see docs/api-permissions.md)
 PROXCLI_ROLES: dict[str, str] = {
     "proxcli-sys": "Sys.Audit,Sys.Modify,Pool.Allocate,Pool.Audit",
-    "proxcli-storage": "Datastore.Allocate,Datastore.AllocateSpace,"
+    # Datastore.Allocate is intentionally ABSENT — on PVE it is the sole
+    # privilege checked for *deleting* storage content (volumes/backups).
+    # Without it the token can still upload (AllocateTemplate), create disks
+    # (AllocateSpace), read storage (Audit), and import cloud images
+    # (import-from needs AllocateSpace/Audit), but CANNOT delete backups.
+    "proxcli-storage": "Datastore.AllocateSpace,"
                        "Datastore.AllocateTemplate,Datastore.Audit",
-    "proxcli-vm": "VM.Allocate,VM.Audit,VM.Backup,VM.Clone,"
+    # VM.Backup is intentionally ABSENT — it is required both to *create*
+    # vzdump backups (POST /vzdump) and as the alternative path to *delete*
+    # backup volumes (DELETE .../content needs Datastore.Allocate, OR
+    # Datastore.AllocateSpace + VM.Backup on the VM).  Removing it from the
+    # default role closes both doors, so backups are read-only by default:
+    # list / show / tasks / defaults all work, create / delete do not.
+    "proxcli-vm": "VM.Allocate,VM.Audit,VM.Clone,"
                   "VM.Config.CDROM,VM.Config.Cloudinit,VM.Config.CPU,"
                   "VM.Config.Disk,VM.Config.HWType,VM.Config.Memory,"
                   "VM.Config.Network,VM.Config.Options,VM.Console,"
@@ -123,7 +134,13 @@ PERMISSION_CHECKS: list[tuple[str, str, str, str]] = [
      "VM.Snapshot.Rollback"),
 
     # ── VMs (backup/clone/migrate) ──
-    ("VM backup",               "POST", "/nodes/{node}/vzdump",  "VM.Backup"),
+    # NOTE: VM.Backup is absent from the default proxcli-vm role, so `backup
+    # create` and `backup delete` are intentionally blocked by default.
+    # Restore (VM.Allocate) cannot be blocked without breaking VM creation.
+    ("VM backup (create)",     "POST",   "/nodes/{node}/vzdump",  "VM.Backup"),
+    ("VM backup (restore)",    "POST",   "/nodes/{node}/qemu",   "VM.Allocate"),
+    ("Backup delete",          "DELETE", "/nodes/{node}/storage/{storage}/content/{volid}",
+     "Datastore.Allocate"),
     ("VM clone",                "POST", "/nodes/{node}/qemu/{vmid}/clone",
      "VM.Clone"),
     ("VM migrate",              "POST", "/nodes/{node}/qemu/{vmid}/migrate",

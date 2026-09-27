@@ -50,6 +50,13 @@ proxmox auth setup --auto --host pve01.lan --non-interactive --json
 
 Verify afterwards with `proxmox auth status --permissions`.
 
+> **Backups are read-only by default.** The default roles omit
+> `Datastore.Allocate` and `VM.Backup`, so `backup create` and `backup delete`
+> return 403. Only `list`, `show`, `tasks`, `defaults` work without elevated
+> privileges. Snapshots (`vm snapshot`) are unaffected and remain available.
+> To enable backup create/delete, add those two privileges to a custom role —
+> see `docs/api-permissions.md` § “Backups are read-only by default”.
+
 ## The `node` field (important)
 
 Read responses include **both** `node` and `_node`. Prefer `node`:

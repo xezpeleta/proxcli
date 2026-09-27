@@ -199,3 +199,56 @@ class TestManualCommandGeneration:
         # The _sh idiom escapes an embedded single quote as the 5-char sequence '"'"'.
         bash_quote_escape = "'\"'\"'"
         assert bash_quote_escape in out
+
+
+class TestBackupsReadOnlyByDefault:
+    """The default roles must NOT grant backup-modifying privileges.
+
+    On PVE, deleting a backup volume requires ``Datastore.Allocate`` (or the
+    combination ``Datastore.AllocateSpace`` + ``VM.Backup`` on the owning VM),
+    and creating a vzdump backup requires ``VM.Backup``.  Both are intentionally
+    absent from the default roles so that a freshly-bootstrapped token can list
+    and inspect backups but cannot create or delete them.
+    """
+
+    def test_datastore_allocate_absent_from_storage_role(self):
+        """Datastore.Allocate is the delete-volume privilege — must be absent."""
+        privs = PROXCLI_ROLES["proxcli-storage"].split(",")
+        assert "Datastore.Allocate" not in privs
+        # The non-destructive storage privs are still present.
+        assert "Datastore.AllocateSpace" in privs
+        assert "Datastore.AllocateTemplate" in privs
+        assert "Datastore.Audit" in privs
+
+    def test_vm_backup_absent_from_vm_role(self):
+        """VM.Backup grants vzdump create + is the alt-path for backup delete."""
+        privs = PROXCLI_ROLES["proxcli-vm"].split(",")
+        assert "VM.Backup" not in privs
+        # Core VM lifecycle privs are still present.
+        assert "VM.Allocate" in privs
+        assert "VM.Snapshot" in privs
+        assert "VM.Snapshot.Rollback" in privs
+
+    def test_no_default_role_grants_backup_delete(self):
+        """No role in the default set may carry Datastore.Allocate."""
+        for name, privs_str in PROXCLI_ROLES.items():
+            assert "Datastore.Allocate" not in privs_str.split(","), (
+                f"{name} must not grant Datastore.Allocate (backup delete)"
+            )
+
+    def test_no_default_role_grants_vm_backup(self):
+        """No role in the default set may carry VM.Backup."""
+        for name, privs_str in PROXCLI_ROLES.items():
+            assert "VM.Backup" not in privs_str.split(","), (
+                f"{name} must not grant VM.Backup (backup create/delete)"
+            )
+
+    def test_generated_script_omits_backup_privs(self):
+        """The manual commands and SSH script must not contain the privs."""
+        for out in (generate_manual_commands(_spec()), generate_setup_script(_spec())):
+            # Datastore.Allocate must not appear as a standalone priv token.
+            # (Datastore.AllocateSpace / AllocateTemplate / AllocateAudit are fine.)
+            assert ",Datastore.Allocate," not in out
+            assert "Datastore.Allocate " not in out
+            # VM.Backup must not appear at all.
+            assert "VM.Backup" not in out

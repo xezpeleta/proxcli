@@ -5,6 +5,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.23.0] - 2026-09-28
+
+### Security
+- **Backups are now read-only by default.** The default `proxcli-storage` and
+  `proxcli-vm` roles no longer grant `Datastore.Allocate` or `VM.Backup`, so a
+  freshly-bootstrapped token **cannot create or delete backups** — only list,
+  show, task-history, and defaults work. This was a deliberate safety change:
+  those two privileges are the *only* ones PVE checks for backup mutation, and
+  neither is needed for any other workflow.
+
+  | Command | Default? | Why |
+  |---------|----------|-----|
+  | `backup list` / `show` / `tasks` / `defaults` | ✅ works | `Datastore.Audit` / `Sys.Audit` (still granted) |
+  | `backup create` (vzdump) | ❌ 403 | needs `VM.Backup` (removed) |
+  | `backup delete` | ❌ 403 | needs `Datastore.Allocate` (removed), or `Datastore.AllocateSpace` + `VM.Backup` (both now absent) |
+  | `backup restore` | ✅ works | shares `VM.Allocate` with `vm create` (cannot block without breaking VM lifecycle; non-destructive to the backup) |
+
+  **No collateral damage** — verified against the PVE source
+  (`PVE::Storage::check_volume_access`, `PVE::API2::Storage::Content`):
+  `Datastore.Allocate` is checked *only* in the volume-delete handler. The
+  cloud-init `--import-from` workflow, `storage upload`, `vm create`, and
+  `vm disk import` all use other privileges (`Datastore.AllocateSpace` /
+  `Datastore.Audit` / `VM.Config.Disk`) and continue to work.
+
+  To opt into backup create/delete, add a custom role with those two
+  privileges — see `docs/api-permissions.md` § “Backups are read-only by
+  default”. Snapshots (`VM.Snapshot`, `VM.Snapshot.Rollback`) remain in the
+  default role.
+
+  This is a **breaking change to default role privileges**. Re-running
+  `proxmox auth setup` syncs the new (reduced) privilege set to existing tokens
+  in place via `pveum role modify`.
+
 ## [0.22.0] - 2026-09-28
 
 ### Added

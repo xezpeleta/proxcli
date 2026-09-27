@@ -55,7 +55,7 @@ In the UI, grant these privileges to `proxcli-agent`:
 | `VM.Config.CPU` | Set CPU count |
 | `VM.Config.Memory` | Set memory |
 | `VM.Snapshot` | Create and manage snapshots |
-| `Datastore.Allocate` | Read and use storage |
+| `Datastore.Allocate` | **Delete** storage content (volumes/backups) — absent from default roles |
 | `Datastore.AllocateSpace` | Allocate disk space |
 | `Pool.Audit` | View resource pools |
 

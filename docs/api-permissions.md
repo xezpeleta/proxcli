@@ -93,17 +93,22 @@ Role name: proxcli-sys
 
 Role name: proxcli-storage
 
-  Datastore.Allocate
   Datastore.AllocateSpace
   Datastore.AllocateTemplate
   Datastore.Audit
+  # Datastore.Allocate is intentionally ABSENT — it is the sole privilege
+  # PVE checks for deleting storage content (backups/volumes).  Without it
+  # the token can upload, create disks, and read storage, but CANNOT delete
+  # backups.  See "Backups are read-only by default" below.
 
 
 Role name: proxcli-vm
 
   VM.Allocate
   VM.Audit
-  VM.Backup
+  # VM.Backup is intentionally ABSENT — it is required to create vzdump
+  # backups AND is the alternative path to delete backup volumes.  Without
+  # it `backup create` and `backup delete` are both blocked.  See below.
   VM.Clone
   VM.Config.CDROM
   VM.Config.Cloudinit
@@ -222,7 +227,7 @@ cloud-init, and starting it:
 | 1 | GET | `/cluster/nextid` | `Sys.Audit` |
 | 2 | POST | `/nodes/{node}/storage/{storage}/upload` | `Datastore.AllocateTemplate` |
 | 3 | POST | `/nodes/{node}/qemu` | `VM.Allocate` |
-| 3 | — | (reads imported image) | `Datastore.Allocate` |
+| 3 | — | (reads imported image) | `Datastore.AllocateSpace` or `Datastore.Audit` |
 | 3 | — | (allocates disk on target storage) | `Datastore.AllocateSpace` |
 | 3 | — | (attaches scsi0 disk) | `VM.Config.Disk` |
 | 3 | — | (sets net0) | `VM.Config.Network` (+ `SDN.Use` if bridge is SDN-managed) |
@@ -319,8 +324,8 @@ TOKEN=vmanager
 
 # ── 1. Create the five proxcli roles (idempotent) ──
 pveum role add proxcli-sys      -privs "Sys.Audit,Sys.Modify,Pool.Allocate,Pool.Audit"
-pveum role add proxcli-storage  -privs "Datastore.Allocate,Datastore.AllocateSpace,Datastore.AllocateTemplate,Datastore.Audit"
-pveum role add proxcli-vm       -privs "VM.Allocate,VM.Audit,VM.Backup,VM.Clone,VM.Config.CDROM,VM.Config.Cloudinit,VM.Config.CPU,VM.Config.Disk,VM.Config.HWType,VM.Config.Memory,VM.Config.Network,VM.Config.Options,VM.Console,VM.GuestAgent.Audit,VM.GuestAgent.FileRead,VM.Migrate,VM.PowerMgmt,VM.Snapshot,VM.Snapshot.Rollback"
+pveum role add proxcli-storage  -privs "Datastore.AllocateSpace,Datastore.AllocateTemplate,Datastore.Audit"
+pveum role add proxcli-vm       -privs "VM.Allocate,VM.Audit,VM.Clone,VM.Config.CDROM,VM.Config.Cloudinit,VM.Config.CPU,VM.Config.Disk,VM.Config.HWType,VM.Config.Memory,VM.Config.Network,VM.Config.Options,VM.Console,VM.GuestAgent.Audit,VM.GuestAgent.FileRead,VM.Migrate,VM.PowerMgmt,VM.Snapshot,VM.Snapshot.Rollback"
 pveum role add proxcli-node     -privs "VM.GuestAgent.Audit,VM.GuestAgent.FileRead"
 pveum role add proxcli-network  -privs "SDN.Audit,SDN.Use"
 
@@ -349,3 +354,59 @@ Then write the new token's secret into `~/.config/proxmox-cli/credentials.json`
 > children (`/sdn/zones`, `/sdn/fabrics`, …) do. Assigning the role at
 > `/sdn/zones` with **Propagate** enabled also works for VM NIC attach, but the
 > canonical, unambiguous path is `/sdn` via `pveum` as shown above.
+
+## Backups are read-only by default
+
+The default `proxcli-storage` and `proxcli-vm` roles are deliberately
+**missing two privileges** so that a freshly-bootstrapped token **cannot
+create or delete backups**:
+
+| Privilege | Absent from | What it controls on PVE |
+|-----------|-------------|-------------------------|
+| `Datastore.Allocate` | `proxcli-storage` | Deleting storage content — it is the *sole* privilege checked by `DELETE /nodes/{node}/storage/{storage}/content/{volid}`. |
+| `VM.Backup` | `proxcli-vm` | Creating vzdump backups (`POST /nodes/{node}/vzdump`) **and** the alternative delete path (a backup volume can be deleted with `Datastore.AllocateSpace` + `VM.Backup` on the owning VM). |
+
+Removing both closes **every** door to backup mutation:
+
+| Command | Method | Required privilege | Default? |
+|---------|--------|--------------------|----------|
+| `backup list` / `show` | GET | `Datastore.Audit` | ✅ granted |
+| `backup tasks` / `defaults` | GET | `Sys.Audit` | ✅ granted |
+| `backup create` | POST `/vzdump` | `VM.Backup` | ❌ blocked |
+| `backup delete` (path A) | DELETE content | `Datastore.Allocate` | ❌ blocked |
+| `backup delete` (path B) | DELETE content | `Datastore.AllocateSpace` + `VM.Backup` | ❌ blocked |
+| `backup restore` | POST `/qemu` | `VM.Allocate` | ✅ granted¹ |
+
+> ¹ Restore shares `VM.Allocate` with `vm create` / `vm clone` — it cannot be
+> blocked without breaking core VM lifecycle. Restore is non-destructive to
+> the backup itself (it reads the backup and writes a *new* VM), so this is an
+> acceptable trade-off.
+
+**No collateral damage.** The privileges that remain are sufficient for every
+other workflow:
+
+- `storage upload` → `Datastore.AllocateTemplate` ✅
+- `vm create` (with disk) → `Datastore.AllocateSpace` ✅
+- `vm create --import-from` (cloud images) → `Datastore.AllocateSpace` or `Datastore.Audit` ✅
+- `vm disk import` → `VM.Config.Disk` + `Datastore.AllocateSpace` ✅
+- `storage list` / `show` / `status` → `Datastore.Audit` ✅
+
+This was verified against the PVE source (`PVE::Storage::check_volume_access`
+and `PVE::API2::Storage::Content`): `Datastore.Allocate` is checked **only** in
+the volume-delete handler.
+
+### Enabling backup create/delete (opt-in)
+
+If you *want* a token to run vzdump or prune old backups, add the missing
+privilege to a custom role:
+
+```bash
+# Create a role that can create+delete backups, then assign it at /storage + /vms
+pveum role add proxcli-backup -privs "VM.Backup,Datastore.Allocate"
+pveum aclmod /storage -token "$UG" -roles proxcli-backup
+pveum aclmod /vms     -token "$UG" -roles proxcli-backup
+```
+
+Snapshots (`VM.Snapshot`, `VM.Snapshot.Rollback`) remain in the default
+`proxcli-vm` role — they are a separate, lighter-weight mechanism and are
+considered safe enough for day-to-day use.

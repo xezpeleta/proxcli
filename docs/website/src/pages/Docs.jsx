@@ -483,7 +483,7 @@ function CommandReferenceDocInner() {
     {
       resource: 'backup',
       icon: Shield,
-      desc: 'vzdump backup management — create, list, restore, delete, snapshot/suspend/stop modes.',
+      desc: 'vzdump backup management — create, list, restore, delete, snapshot/suspend/stop modes. Read-only by default (create/delete need elevated privileges).',
       subcommands: [
         { name: 'list', desc: 'List existing backups' },
         { name: 'create', desc: 'Create a new backup (snapshot, suspend, or stop mode)' },
