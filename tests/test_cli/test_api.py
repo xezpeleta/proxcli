@@ -124,3 +124,44 @@ class TestAPICLI:
             "--data", "not json",
         )
         assert "Invalid JSON" in result.stdout or "error" in result.stdout
+
+    def test_api_list_endpoints_no_creds(self):
+        """api --list-endpoints needs no credentials (pure documentation)."""
+        result = run_proxmox("api", "--list-endpoints", "--output", "json")
+        assert result.returncode == 0, result.stderr
+        import json as _json
+        data = _json.loads(result.stdout)
+        assert isinstance(data, list)
+        assert len(data) > 20
+        # each record has the documented shape
+        first = data[0]
+        assert {"category", "method", "path", "description"} <= set(first)
+
+    def test_api_list_endpoints_table(self):
+        """api --list-endpoints --output table renders a grouped table."""
+        result = run_proxmox("api", "--list-endpoints", "--output", "table")
+        assert result.returncode == 0
+        assert "category" in result.stdout
+        assert "/cluster/status" in result.stdout
+
+    def test_api_no_method_without_list_endpoints_errors(self, tmp_path, monkeypatch):
+        """api with no method/path and no --list-endpoints returns an error."""
+        config_dir = tmp_path / "proxmox-cli"
+        monkeypatch.setattr("proxmox.config.models.USER_CONFIG_DIR", config_dir)
+
+        result = run_proxmox(
+            "--url", "https://pve:8006",
+            "--username", "root@pam",
+            "--api-token", "root@pam!test=abc123",
+            "api",
+        )
+        assert result.returncode == 0  # handler returns an error dict, not a crash
+        assert "method is required" in result.stdout
+
+    def test_api_help_epilog_documents_path_conventions(self):
+        """api --help surfaces the node-vs-cluster path convention."""
+        result = run_proxmox("api", "--help")
+        assert result.returncode == 0
+        assert "Cluster-wide:" in result.stdout
+        assert "Per-node:" in result.stdout
+        assert "--list-endpoints" in result.stdout

@@ -62,7 +62,7 @@ class TestCephCLI:
         assert "nodes/pve01/ceph/log" in result.stdout
 
     def test_ceph_osd_dry_run(self, tmp_path):
-        """ceph osd --dry-run shows the request."""
+        """ceph osd --dry-run shows both the CRUSH-tree and disk-inventory requests."""
         env = _fake_env(tmp_path)
 
         result = run_proxmox(
@@ -77,6 +77,25 @@ class TestCephCLI:
         assert result.returncode == 0
         assert "GET" in result.stdout
         assert "disks/list" in result.stdout
+        # the CRUSH tree (capacity/utilization) is also queried
+        assert "ceph/osd" in result.stdout
+
+    def test_ceph_pool_dry_run(self, tmp_path):
+        """ceph pool --dry-run shows the pool request."""
+        env = _fake_env(tmp_path)
+
+        result = run_proxmox(
+            "--url", "https://pve:8006",
+            "--username", "root@pam",
+            "--api-token", "root@pam!test=abc123",
+            "--dry-run",
+            "ceph", "pool",
+            "--node", "pve01",
+            env=env,
+        )
+        assert result.returncode == 0
+        assert "GET" in result.stdout
+        assert "ceph/pool" in result.stdout
 
     def test_ceph_disks_dry_run(self, tmp_path):
         """ceph disks --dry-run shows the request."""

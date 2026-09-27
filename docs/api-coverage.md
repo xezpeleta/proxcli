@@ -182,7 +182,8 @@ omitted for safety.
 | Subcommand | Method | API path |
 |---|---|---|
 | `status` | GET | `/cluster/ceph/status` |
-| `osd` | GET | `/nodes/{node}/ceph/osd` |
+| `osd` | GET | `/nodes/{node}/ceph/osd` **+** `/nodes/{node}/disks/list` (merged: CRUSH-tree utilization + disk health) |
+| `pool` | GET | `/nodes/{node}/ceph/pool` (cluster-wide; any Ceph node returns all pools) |
 | `log` | GET | `/nodes/{node}/ceph/log` |
 | `disks` | GET | `/nodes/{node}/disks/list` |
 
@@ -256,8 +257,10 @@ omitted for safety.
 
 </details>
 
-> HA (read-only) and SDN (read-only) were added in v0.21.0. Mutating HA/SDN
-> operations remain available via the `proxmox api` escape hatch.
+> HA (read-only) and SDN (read-only) were added in v0.21.0. Ceph pool listing
+> and OSD capacity utilization were added in v0.22.0. Mutating HA/SDN
+> operations remain available via the `proxmox api` escape hatch — browse
+> endpoint patterns with `proxmox api --list-endpoints`.
 
 <details>
 <summary><strong>Node-level</strong> (8 areas)</summary>

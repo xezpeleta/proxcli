@@ -5,6 +5,51 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.22.0] - 2026-09-28
+
+### Added
+- **`ceph osd` now surfaces capacity utilization.** Previously `ceph osd`
+  reported only disk health and wearout (from the disk-inventory endpoint);
+  diagnosing nearfull warnings required dropping to the raw API and parsing the
+  nested CRUSH tree. The command now merges the CRUSH tree and reports
+  `used_pct`, `used_gb`, `reweight`, `status`, and `in_cluster` for every OSD,
+  alongside the existing disk-health fields. The OSD `percent_used` API field
+  is a 0–100 number (unlike pools — see below).
+
+- **`ceph pool` — new subcommand.** Lists Ceph pools with capacity and PG
+  stats: `pool`, `name`, `type`, `size`, `pgs`, `used_gb`, `percent_used`,
+  `max_avail`, `target_size_ratio`, `crush_rule`, and `applications`. Pools are
+  where nearfull warnings live; `max_avail: null` and an anomalous
+  `target_size_ratio` are the key signals. The pool `percent_used` API field
+  is a 0–1 ratio (normalized to 0–100 for output) — a different scale from the
+  OSD tree, which proxcli now hides from the user.
+
+- **`api --list-endpoints` — endpoint discoverability.** The raw-API escape
+  hatch now prints a curated, grouped catalog of ~60 common Proxmox API
+  endpoint patterns (`Cluster`, `Nodes`, `VMs`, `Containers`, `Storage`,
+  `Access`, `Tasks`, `Pools`, `Backup`). The `api --help` epilog documents the
+  node-vs-cluster path convention (`/cluster/...` vs `/nodes/{node}/...`) that
+  was previously learned only by trial and error. `--list-endpoints` needs no
+  credentials.
+
+- **`--json` shorthand.** `--json` is now accepted as a shorthand for
+  `--output json` (the default). It works in either position — before or after
+  the subcommand — via the existing global-flag hoisting. Agents that reach
+  for `--json` by reflex no longer hit an "unrecognized argument" error.
+
+### Changed
+- **`ceph osd` help text** clarifies that it reports "disk health, wearout,
+  and capacity utilization" (previously just "List Ceph OSDs").
+- **`api` method/path are now optional** when `--list-endpoints` is given;
+  omitted without the flag, a clear error is returned.
+
+### Fixed
+- **`auth setup --json` no longer clobbered by hoisting.** The `auth setup`
+  subcommand previously declared its own `--json`, whose subparser default
+  overwrote the hoisted global value. The subcommand-level `--json` is removed;
+  the global flag (hoisted before the resource) is now the single source of
+  truth, and `_want_json()` reads it from the namespace.
+
 ## [0.21.0] - 2026-09-28
 
 ### Added

@@ -187,12 +187,13 @@
   {
     "category": "Ceph",
     "icon": "Database",
-    "total": 4,
-    "done": 4,
+    "total": 5,
+    "done": 5,
     "groups": [
-      { "name": "Ops", "done": 4, "total": 4, "items": [
+      { "name": "Ops", "done": 5, "total": 5, "items": [
         {"name": "status", "status": "done"},
         {"name": "osd", "status": "done"},
+        {"name": "pool", "status": "done"},
         {"name": "log", "status": "done"},
         {"name": "disks", "status": "done"}
       ]}
@@ -231,8 +232,8 @@
   {
     "category": "Access control",
     "icon": "Users",
-    "total": 18,
-    "done": 18,
+    "total": 22,
+    "done": 22,
     "groups": [
       { "name": "Users", "done": 5, "total": 5, "items": [
         {"name": "list", "status": "done"},

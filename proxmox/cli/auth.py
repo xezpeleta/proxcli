@@ -333,10 +333,10 @@ def register_auth_parser(subparsers: argparse._SubParsersAction) -> None:
         "--dry-run", action="store_true", default=argparse.SUPPRESS,
         help="Print the generated script + ssh command without executing.",
     )
-    setup.add_argument(
-        "--json", action="store_true",
-        help="Emit machine-readable JSON to stdout (for scripts/agents).",
-    )
+    # NOTE: --json is a global flag (see main.py); it is hoisted before the
+    # resource so `proxmox auth setup --json` works. _want_json() reads it
+    # back from the namespace. Do not redeclare it here: a subparser default
+    # would overwrite the hoisted value (cf. the --timeout exclusion).
     setup.set_defaults(func=_auth_setup)
 
     # --- auth check ---

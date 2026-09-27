@@ -39,6 +39,11 @@ def build_root_parser() -> argparse.ArgumentParser:
         help="Output format (default: json)",
     )
     parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Shorthand for --output json (accepted for ergonomics; default is already json)",
+    )
+    parser.add_argument(
         "--columns",
         default=None,
         help="Columns to show in table output, comma-separated "
@@ -218,6 +223,7 @@ def _print_command_help(args: argparse.Namespace) -> None:
 GLOBAL_FLAGS = {
     "--url", "--username", "--password", "--password-stdin", "--api-token",
     "--output", "--dry-run", "--insecure", "--timeout", "--verbose", "--version", "--columns",
+    "--json",
 }
 
 # Flags that take a value (the value follows the flag)
@@ -344,6 +350,9 @@ def _resolve_output(args: argparse.Namespace) -> str:
             return sys.argv[i + 1]
         if arg.startswith("--output="):
             return arg.split("=", 1)[1]
+    # --json shorthand (explicit --output above still wins)
+    if getattr(args, "json", False):
+        return "json"
     # Use the subparser hint
     hint = getattr(args, "output_format", None)
     if hint:
@@ -394,6 +403,10 @@ def main(argv: list[str] | None = None) -> None:
                 args.resource == "auth"
                 and args.action == "status"
                 and not getattr(args, "permissions", False)
+            )
+            or (
+                args.resource == "api"
+                and getattr(args, "list_endpoints", False)
             )
         ):
             if hasattr(args, "func"):

@@ -448,16 +448,18 @@ function CommandReferenceDocInner() {
     {
       resource: 'ceph',
       icon: Database,
-      desc: 'Ceph cluster health, OSDs, logs, and disk inventory.',
+      desc: 'Ceph cluster health, OSD capacity, pools, logs, and disk inventory.',
       subcommands: [
         { name: 'status', desc: 'Show Ceph cluster health and PG status' },
+        { name: 'osd', desc: 'List OSDs with disk health + capacity utilization (used%, reweight, status)' },
+        { name: 'pool', desc: 'List Ceph pools: used%, max_avail, target_size_ratio, PGs (nearfull signals)' },
         { name: 'log', desc: 'Show recent Ceph log entries' },
-        { name: 'osd', desc: 'List Ceph OSDs (--node to filter, --json for raw data)' },
         { name: 'disks', desc: 'List physical disks available for Ceph OSDs' },
       ],
       examples: [
         'proxmox ceph status',
         'proxmox ceph osd --node pve01',
+        'proxmox ceph pool --output table',
         'proxmox ceph disks',
       ],
     },
@@ -605,14 +607,16 @@ function CommandReferenceDocInner() {
     {
       resource: 'api',
       icon: Send,
-      desc: 'Raw authenticated API calls — for endpoints not yet covered by dedicated subcommands.',
+      desc: 'Raw authenticated API calls — for endpoints not yet covered by dedicated subcommands. Use --list-endpoints to browse known paths.',
       subcommands: [
         { name: 'GET <path>', desc: 'Send a GET request (e.g. /nodes/pve01/status)' },
         { name: 'POST <path>', desc: 'Send a POST request with --data or --data-file' },
         { name: 'PUT <path>', desc: 'Send a PUT request to update a resource' },
         { name: 'DELETE <path>', desc: 'Send a DELETE request' },
+        { name: '--list-endpoints', desc: 'Print a curated catalog of ~60 common endpoint patterns (no creds needed)' },
       ],
       examples: [
+        'proxmox api --list-endpoints --output table',
         'proxmox api GET /nodes/pve01/status',
         'proxmox api PUT /nodes/pve01/qemu/100/config -d \'{"memory": 4096}\'',
         'echo \'{"memory": 4096}\' | proxmox api PUT /nodes/pve01/qemu/100/config',

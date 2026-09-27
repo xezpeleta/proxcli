@@ -71,7 +71,7 @@ proxmox --dry-run vm list
 
 The CLI relocates them internally. The set: `--dry-run`, `--output`, `--columns`,
 `--insecure`, `--verbose`, `--url`, `--username`, `--password`, `--api-token`,
-`--password-stdin`, `--version`.
+`--password-stdin`, `--version`, `--json`.
 
 **Exception:** `--timeout` is **not** relocated, because `task wait` and
 `vm agent exec` define their own `--timeout` with different units/meaning.
@@ -92,6 +92,13 @@ It works before or after the subcommand.
 ```bash
 proxmox vm list --output yaml
 proxmox vm list --output table --columns vmid,name,status
+```
+
+`--json` is a shorthand for `--output json` (already the default). It is
+accepted in either position and is the flag agents instinctively reach for:
+
+```bash
+proxmox vm list --json          # equivalent to --output json
 ```
 
 ## Dry-run
@@ -232,13 +239,40 @@ proxmox cluster sdn vnets show vnet0
 proxmox cluster sdn pending               # unapplied changes
 ```
 
+## Ceph capacity & nearfull diagnosis
+
+`ceph osd` and `ceph pool` surface exactly the fields needed to diagnose
+nearfull warnings — no raw API or CRUSH-tree parsing required:
+
+```bash
+proxmox ceph osd --output table           # per-OSD: used_pct, used_gb, reweight, status, + disk health
+proxmox ceph pool --output table          # per-pool: used_pct, max_avail, target_size_ratio, pgs
+```
+
+Key signals:
+- **OSD `used_pct`** — which disks are fullest. The Proxmox API returns this
+  on a 0–100 scale; proxcli preserves it.
+- **Pool `max_avail: null`** — Ceph can't compute free space for the pool; a
+  strong nearfull indicator.
+- **Pool `target_size_ratio`** — if set to an unexpected value (e.g. `100`
+  instead of a 0–1 fraction), it distorts the PG autoscaler's capacity math
+  and can trigger spurious nearfull flags.
+
+Note the API's footgun: OSD `percent_used` is 0–100, but **pool**
+`percent_used` is a 0–1 ratio. proxcli normalizes both to 0–100 in its output.
+
 ## Discovering the full API surface
 
 - `proxmox --help` — top-level resources.
 - `proxmox <resource> --help` — that resource's actions and flags.
 - `proxmox <resource> <action> --help` — action-level flags (e.g. `proxmox vm create --help`).
-- `proxmox api --help` — for endpoints not yet covered by a subcommand, make a raw call:
-  `proxmox api get /nodes/pve01/status`.
+- `proxmox api --list-endpoints` — a curated, grouped catalog of ~60 common
+  endpoint patterns (`Cluster`, `Nodes`, `VMs`, `Containers`, `Storage`, …).
+  No credentials needed. Pair with `--output table` to browse.
+- `proxmox api --help` — documents the node-vs-cluster path convention
+  (`/cluster/...` vs `/nodes/{node}/...`) and shows examples.
+- `proxmox api GET /nodes/pve01/status` — raw call for any endpoint not yet
+  covered by a subcommand.
 
 ## Zero-arg cheat sheet
 

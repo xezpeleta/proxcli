@@ -149,6 +149,7 @@ proxmox --insecure vm list
 | `--password-stdin` | — | Read password from stdin |
 | `--api-token` | — | API token (`user!tokenid=secret`) |
 | `--output` | `json` | Output format: `json`, `table`, `yaml`, `log` |
+| `--json` | off | Shorthand for `--output json` (accepted for ergonomics; default is already json) |
 | `--columns` | all | Columns to display in table output (e.g. `--columns vmid,name,status`) |
 | `--dry-run` | off | Print the API request without executing |
 | `--insecure` | off | Skip TLS verification |
@@ -374,7 +375,8 @@ proxmox cluster options                      # migration, keyboard, mac_prefix, 
 
 # Ceph management
 proxmox ceph status                          # cluster health: OSDs, PGs, usage, monitors
-proxmox ceph osd [--node <node>]             # OSD list with disk model/size/health/wearout
+proxmox ceph osd [--node <node>]             # OSDs: disk health + wearout + capacity utilization (used%, reweight, status)
+proxmox ceph pool [--node <node>]            # pools: used%, max_avail, target_size_ratio, PGs (nearfull signals)
 proxmox ceph log [--node <node>] [--limit N] # recent Ceph log entries
 proxmox ceph disks [--node <node>]           # physical disks: device, model, health, wearout, OSD
 
@@ -554,6 +556,15 @@ proxmox --dry-run vm create --node pve01 --vmid 110 --memory 1024
 # YAML output is the easiest to parse line-by-line:
 proxmox --output yaml vm list | grep 'name:'
 
+# --json is a shorthand for --output json (default). Works before or after the subcommand:
+proxmox vm list --json
+
+# Raw API escape hatch — reach any endpoint not yet covered by a subcommand.
+# Browse known endpoint patterns first, then call the one you need:
+proxmox api --list-endpoints --output table
+proxmox api GET /nodes/pve01/ceph/pool
+proxmox api PUT /nodes/pve01/qemu/100/config -d '{"memory": 4096}'
+
 # Check exit code
 proxmox vm show 999 || echo "VM not found"
 ```
@@ -562,7 +573,7 @@ Running `proxmox` with no arguments prints a short cheat sheet of these patterns
 
 ### Global flag placement
 
-Global flags (`--dry-run`, `--output`, `--columns`, `--insecure`, `--verbose`, `--url`, `--username`, `--password`, `--api-token`) may appear **before or after** the subcommand — the CLI relocates them internally. One exception: `--timeout` is **not** relocated, because `task wait` and `vm agent exec` define their own `--timeout` with different units. Put `--timeout` before the resource when you mean the request timeout.
+Global flags (`--dry-run`, `--output`, `--columns`, `--insecure`, `--verbose`, `--url`, `--username`, `--password`, `--api-token`, `--json`) may appear **before or after** the subcommand — the CLI relocates them internally. One exception: `--timeout` is **not** relocated, because `task wait` and `vm agent exec` define their own `--timeout` with different units. Put `--timeout` before the resource when you mean the request timeout.
 
 ## Development
 

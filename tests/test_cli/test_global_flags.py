@@ -66,6 +66,12 @@ class TestHoistGlobalFlags:
         out = _hoist_global_flags(["vm", "list", "--node", "pve01"])
         assert out == ["vm", "list", "--node", "pve01"]
 
+    def test_json_shorthand_hoisted(self):
+        """--json (shorthand for --output json) is hoisted before the resource
+        so `proxmox vm list --json` parses without 'unrecognized argument'."""
+        out = _hoist_global_flags(["vm", "list", "--json"])
+        assert out == ["--json", "vm", "list"]
+
 
 class TestResolveColumns:
     def test_comma_separated(self):
@@ -128,4 +134,17 @@ class TestCLIGlobalFlags:
         result = subprocess.run([entrypoint, "--version"], capture_output=True, text=True, timeout=10)
         assert result.returncode == 0
         assert "proxcli" in result.stdout
+
+    def test_json_shorthand_after_subcommand(self, tmp_path):
+        """`<resource> ... --json` works: --json is hoisted before the resource
+        and yields JSON output (agents reach for --json by reflex; it must not
+        error with 'unrecognized argument').
+
+        Uses `api --list-endpoints` (no client needed, clean JSON) so the
+        assertion isn't muddied by dry-run request previews on stdout."""
+        result = run_proxmox("api", "--list-endpoints", "--json")
+        assert result.returncode == 0, result.stderr
+        import json as _json
+        data = _json.loads(result.stdout)  # clean JSON, no preview prefix
+        assert isinstance(data, list) and data
 
